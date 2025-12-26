@@ -28,6 +28,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 from model import GPTConfig, GPT
+from manifold import grassmann_muon_update
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
@@ -45,6 +46,7 @@ wandb_project = 'owt'
 wandb_run_name = 'gpt2' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
+data_dir = 'data/openwebtext'  # can be overridden by config
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
 batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
@@ -61,6 +63,16 @@ weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
 grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+# grassmann muon optimizer (for manifold optimization)
+use_grassmann = False # enable Grassmann Muon for square attention weights
+grass_lr = 5e-4 # Grassmann learning rate (8× lower than no-skip for skip connections)
+grass_a = 0.0 # First eigenvalue (0.0 for skip connections, 1.0 for no-skip)
+grass_b = -1.0 # Second eigenvalue (-1.0 for skip connections, 0.0 for no-skip)
+grass_rank = None # Projector rank (None = auto 62.5% of n_embd, e.g., 240 for n_embd=384)
+grass_alpha = 0.01 # Dual ascent step size
+grass_steps = 10 # Max dual iterations per update
+grass_tol = 1e-6 # Convergence tolerance
+grassmann_phase = 'phase0' # Experimental phase: 'phase0', 'phase1', 'phase2', 'phase3', 'phase4', or 'phase5'
 # learning rate decay settings
 decay_lr = True # whether to decay the learning rate
 warmup_iters = 2000 # how many steps to warm up for
@@ -112,7 +124,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('data', dataset)
+# data_dir is set at top of file and can be overridden by config
 def get_batch(split):
     # We recreate np.memmap every batch to avoid a memory leak, as per
     # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
@@ -175,7 +187,8 @@ elif init_from == 'resume':
     for k,v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-    model.load_state_dict(state_dict)
+    # Use strict=False to allow loading checkpoints with scaling layers that may not exist in fresh model
+    model.load_state_dict(state_dict, strict=False)
     iter_num = checkpoint['iter_num']
     best_val_loss = checkpoint['best_val_loss']
 elif init_from.startswith('gpt2'):
@@ -196,7 +209,54 @@ model.to(device)
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+if use_grassmann:
+    # Hybrid optimizer with block decomposition support
+    optimizer, grassmann_params = model.configure_optimizers_grassmann_phases(
+        weight_decay, learning_rate, (beta1, beta2), device_type, grassmann_phase
+    )
+
+    # Build grassmann_configs from grassmann_params (needed for setup even when resuming)
+    grassmann_configs = []
+    for cfg in grassmann_params:
+        grassmann_configs.append({
+            'name': cfg['name'].replace('weight', '').replace('transformer.h.0.', ''),  # Pattern match
+            'k': cfg['k'],
+            'a': cfg['a'],
+            'b': cfg['b'],
+            'r': cfg['r'],
+            'decomp_type': cfg['decomp_type'],
+            'scale': cfg['scale']  # Forward-pass scaling for norm preservation
+        })
+
+    # Initialize Grassmann weights on manifold (only from scratch, not when resuming)
+    if init_from == 'scratch':
+        model.init_grassmann_weights_blocks(grassmann_configs)
+
+    # Setup component-specific dropout (Grassmann uses half of AdamW dropout)
+    model.setup_component_dropout(grassmann_configs)
+
+    # Setup frozen scaling layers for vertical decomposition (Phases 1-5)
+    model.setup_norm_preserving_scaling(grassmann_phase, grassmann_configs)
+
+    # Setup skip removal for .2 phase variants (attn only)
+    model.setup_skip_removal(grassmann_phase)
+
+    # Phase 5: Remove skip connections from transformer blocks
+    if grassmann_phase == 'phase5':
+        print("\n=== Phase 5: Removing skip connections ===")
+        def forward_no_skip(self, x):
+            x = self.attn(self.ln_1(x))  # No skip
+            x = self.mlp(self.ln_2(x))   # No skip
+            return x
+
+        for i, block in enumerate(model.transformer.h):
+            # Monkey-patch the forward method
+            block.forward = forward_no_skip.__get__(block, block.__class__)
+        print("Skip connections removed from all transformer blocks")
+else:
+    optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+    grassmann_params = []
+
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
@@ -306,12 +366,66 @@ while True:
     # clip the gradient
     if grad_clip != 0.0:
         scaler.unscale_(optimizer)
+        # BUG FIX: Unscale Grassmann gradients too (for float16 mixed precision)
+        if use_grassmann and dtype == 'float16':
+            for cfg in grassmann_params:
+                param = cfg['param']
+                if param.grad is not None:
+                    param.grad.div_(scaler.get_scale())
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+
     # step the optimizer and scaler if training in fp16
     scaler.step(optimizer)
     scaler.update()
+
+    # apply Grassmann Muon updates to manifold parameters with block decomposition
+    if use_grassmann and len(grassmann_params) > 0:
+        from manifold.block_decomposition import apply_grassmann_blocks
+
+        # Get current learning rate (with warmup/decay applied)
+        current_lr = optimizer.param_groups[0]['lr']
+        # Scale Grassmann LR proportionally to AdamW LR schedule
+        lr_scale = current_lr / learning_rate if learning_rate > 0 else 1.0
+
+        for cfg in grassmann_params:
+            param = cfg['param']
+            if param.grad is not None:
+                # Scale learning rate with warmup/decay
+                eta = cfg['lr'] * lr_scale
+
+                if cfg['decomp_type'] is None:
+                    # Square matrix, no decomposition
+                    param.data = grassmann_muon_update(
+                        W=param.data,
+                        G=param.grad,
+                        eta=eta,
+                        a=cfg['a'],
+                        b=cfg['b'],
+                        r=cfg['r'],
+                        alpha=cfg['alpha'],
+                        steps=cfg['steps'],
+                        tol=cfg['tol']
+                    )
+                else:
+                    # Rectangular matrix, use block decomposition
+                    param.data = apply_grassmann_blocks(
+                        W=param.data,
+                        G=param.grad,
+                        eta=eta,
+                        a=cfg['a'],
+                        b=cfg['b'],
+                        r=cfg['r'],
+                        k=cfg['k'],
+                        decomp_type=cfg['decomp_type'],
+                        scale=cfg['scale'],
+                        alpha=cfg['alpha'],
+                        steps=cfg['steps'],
+                        tol=cfg['tol']
+                    )
+
     # flush the gradients as soon as we can, no need for this memory anymore
-    optimizer.zero_grad(set_to_none=True)
+    # BUG FIX: Zero ALL gradients including Grassmann params
+    model.zero_grad(set_to_none=True)
 
     # timing and logging
     t1 = time.time()
