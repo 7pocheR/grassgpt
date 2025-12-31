@@ -41,10 +41,11 @@ lr_decay_iters = 150000  # CRITICAL: < max_iters for fine-tuning region!
 min_lr = 6e-5  # 0.1 × learning_rate
 
 # Multi-GPU batch configuration
-# Same as before: 32 × 12 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens
+# REDUCED for full block decomposition (768 blocks/layer uses more memory)
+# 16 × 24 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens (same total)
 # grad_accum MUST be divisible by 4 GPUs (DDP requirement)
-batch_size = 32  # Per GPU
-gradient_accumulation_steps = 12  # Total 384 sequences per GPU, 393K tokens/iter
+batch_size = 16  # Per GPU (reduced from 32 due to memory constraints)
+gradient_accumulation_steps = 24  # Doubled to maintain same tokens/iter (393K tokens)
 
 # Regularization
 weight_decay = 1e-1  # Standard for GPT-2 (applies to AdamW params only)
