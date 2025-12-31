@@ -3883,3 +3883,11 @@ Norm-preserving scaling setup complete.
 compiling the model... (takes a ~minute)
 step 0: train loss 10.9889, val loss 10.9892
 iter 0: loss 11.0041, time 111100.44ms, mfu -100.00%
+iter 10: loss 10.2632, time 4864.79ms, mfu 31.39%
+iter 20: loss 9.4683, time 4822.59ms, mfu 31.42%
+iter 30: loss 9.3163, time 4878.68ms, mfu 31.41%
+iter 40: loss 9.3214, time 4909.62ms, mfu 31.38%
+iter 50: loss 9.1901, time 4917.90ms, mfu 31.34%
+iter 60: loss 8.8697, time 4951.22ms, mfu 31.29%
+iter 70: loss 8.7264, time 4962.33ms, mfu 31.24%
+iter 80: loss 8.4068, time 4944.54ms, mfu 31.21%

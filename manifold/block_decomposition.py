@@ -256,6 +256,165 @@ class BlockDecomposedLinear(nn.Module):
         return s
 
 
+class FullBlockDecomposedLinear(nn.Module):
+    """
+    Full block decomposition: Decomposes (out_features, in_features) into grid of square blocks.
+
+    For 1024×1024 matrix:
+      - Splits into 16×16 grid = 256 blocks of 64×64
+      - Each block is independently Grassmann-constrained
+      - Enables true head independence in multi-head attention
+
+    Forward computation:
+      For each output head h:
+        head_h = sum_{i=1}^{n_blocks_in} W_{h,i} @ x_i
+
+    Used for c_attn in alternative architecture (768 blocks total for Q/K/V).
+    """
+
+    def __init__(self, in_features, out_features, block_size=64,
+                 use_block_gating=False, gating_mode='per_head', bias=False):
+        """
+        Args:
+            in_features (int): Input dimension (e.g., 1024)
+            out_features (int): Output dimension (e.g., 1024)
+            block_size (int): Size of each square block (default: 64)
+            use_block_gating (bool): Whether to add gating
+            gating_mode (str): 'per_head' (16 gates), 'per_block' (256 gates),
+                              or 'per_block_segment' (256 gates, efficient)
+            bias (bool): Whether to include bias (should be False for Grassmann)
+        """
+        super().__init__()
+
+        assert in_features % block_size == 0, \
+            f"in_features ({in_features}) must be divisible by block_size ({block_size})"
+        assert out_features % block_size == 0, \
+            f"out_features ({out_features}) must be divisible by block_size ({block_size})"
+        assert not bias, "Full block decomposition for Grassmann should not use bias"
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.block_size = block_size
+        self.n_blocks_in = in_features // block_size      # 16 for 1024/64
+        self.n_blocks_out = out_features // block_size    # 16 for 1024/64
+
+        # Create grid of blocks: n_blocks_out × n_blocks_in (e.g., 16×16 = 256 blocks)
+        # blocks[h][i] corresponds to W_{h,i} in mathematical notation
+        self.blocks = nn.ModuleList([
+            nn.ModuleList([
+                nn.Linear(block_size, block_size, bias=False)
+                for _ in range(self.n_blocks_in)
+            ]) for _ in range(self.n_blocks_out)
+        ])
+
+        # Gating
+        self.gating_mode = gating_mode if use_block_gating else None
+        if use_block_gating:
+            if gating_mode == 'per_head':
+                # One gate per output head: 16 gates for 1024d
+                # gate_h = sigmoid(v_h^T x)
+                self.gates = nn.Linear(in_features, self.n_blocks_out, bias=False)
+            elif gating_mode == 'per_block':
+                # One gate per block: 256 gates for 16×16 grid
+                # gate_{h,i} = sigmoid(v_{h,i}^T x)
+                self.gates = nn.Linear(in_features,
+                    self.n_blocks_out * self.n_blocks_in, bias=False)
+            elif gating_mode == 'per_block_segment':
+                # One gate per block, but only sees its input segment: 256 gates
+                # gate_{h,i} = sigmoid(v_{h,i}^T x_i)  [most efficient]
+                self.gates = nn.ModuleList([
+                    nn.ModuleList([
+                        nn.Linear(block_size, 1, bias=False)
+                        for _ in range(self.n_blocks_in)
+                    ]) for _ in range(self.n_blocks_out)
+                ])
+            else:
+                raise ValueError(f"Unknown gating_mode: {gating_mode}")
+        else:
+            self.gates = None
+
+    def forward(self, x):
+        """
+        Forward pass through full block decomposition.
+
+        Args:
+            x: (B, T, in_features)  [e.g., (B, T, 1024)]
+
+        Returns:
+            y: (B, T, out_features)  [e.g., (B, T, 1024)]
+        """
+        B, T, _ = x.size()
+
+        # Split input into n_blocks_in segments of block_size
+        # x_segments: (B, T, 16, 64) for 1024d with block_size=64
+        x_segments = x.view(B, T, self.n_blocks_in, self.block_size)
+
+        # Compute output for each head
+        outputs = []
+        for h in range(self.n_blocks_out):
+            # Aggregate contributions from all input segments
+            head_output = torch.zeros(B, T, self.block_size,
+                                     device=x.device, dtype=x.dtype)
+
+            for i in range(self.n_blocks_in):
+                # Block projection: W_{h,i} @ x_i
+                # x_segments[:, :, i]: (B, T, 64)
+                contribution = self.blocks[h][i](x_segments[:, :, i])  # (B, T, 64)
+
+                # Apply gating if enabled
+                if self.gates is not None:
+                    if self.gating_mode == 'per_head':
+                        # Compute all head gates once (cache if needed)
+                        if i == 0:  # Only compute once per head
+                            gate_all = torch.sigmoid(self.gates(x))  # (B, T, n_blocks_out)
+                        gate = gate_all[:, :, h:h+1]  # (B, T, 1)
+                    elif self.gating_mode == 'per_block':
+                        # Compute all block gates from full input
+                        if h == 0 and i == 0:  # Only compute once
+                            self.gate_cache = torch.sigmoid(self.gates(x))  # (B, T, 256)
+                        gate_idx = h * self.n_blocks_in + i
+                        gate = self.gate_cache[:, :, gate_idx:gate_idx+1]  # (B, T, 1)
+                    elif self.gating_mode == 'per_block_segment':
+                        # Compute gate from input segment only (most efficient)
+                        gate = torch.sigmoid(
+                            self.gates[h][i](x_segments[:, :, i])
+                        )  # (B, T, 1)
+
+                    contribution = contribution * gate
+
+                head_output = head_output + contribution
+
+            outputs.append(head_output)
+
+        # Concatenate all heads: [(B, T, 64)] × 16 → (B, T, 1024)
+        output = torch.cat(outputs, dim=-1)
+        return output
+
+    def get_grassmann_params(self):
+        """
+        Get list of all block weight parameters for Grassmann optimizer.
+
+        Returns:
+            List[torch.Tensor]: Weight tensors, each (block_size, block_size)
+                               Total: n_blocks_out × n_blocks_in tensors
+        """
+        params = []
+        for h in range(self.n_blocks_out):
+            for i in range(self.n_blocks_in):
+                params.append(self.blocks[h][i].weight)
+        return params
+
+    def extra_repr(self):
+        """String representation for debugging."""
+        total_blocks = self.n_blocks_out * self.n_blocks_in
+        s = (f'{self.in_features}, {self.out_features}, '
+             f'block_size={self.block_size}, '
+             f'blocks={self.n_blocks_out}×{self.n_blocks_in}={total_blocks}')
+        if self.gating_mode is not None:
+            s += f', gating={self.gating_mode}'
+        return s
+
+
 def test_block_decomposition():
     """
     Unit tests for block decomposition functions.

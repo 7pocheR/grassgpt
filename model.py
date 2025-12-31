@@ -37,8 +37,43 @@ class CausalSelfAttention(nn.Module):
 
         # Q, K, V projections - use block decomposition if Grassmann enabled
         self.use_grassmann = getattr(config, 'use_grassmann', False)
-        if self.use_grassmann:
-            # Decompose into 3 blocks (Q, K, V) with NO frozen scaling, NO block gating
+        self.use_full_block_decomp = getattr(config, 'use_full_block_decomp', False)
+
+        if self.use_grassmann and self.use_full_block_decomp:
+            # Alternative: Full 16×16 block decomposition for c_attn
+            # Q, K, V each get their own 16×16 grid (768 total blocks for QKV)
+            from manifold import FullBlockDecomposedLinear
+
+            # Create 3 separate FullBlockDecomposedLinear layers (Q, K, V)
+            block_size = getattr(config, 'full_block_size', 64)
+            gating_mode = getattr(config, 'full_block_gating_mode', 'per_head')
+
+            self.c_attn_q = FullBlockDecomposedLinear(
+                config.n_embd, config.n_embd,
+                block_size=block_size,
+                use_block_gating=True,
+                gating_mode=gating_mode,
+                bias=False
+            )
+            self.c_attn_k = FullBlockDecomposedLinear(
+                config.n_embd, config.n_embd,
+                block_size=block_size,
+                use_block_gating=True,
+                gating_mode=gating_mode,
+                bias=False
+            )
+            self.c_attn_v = FullBlockDecomposedLinear(
+                config.n_embd, config.n_embd,
+                block_size=block_size,
+                use_block_gating=True,
+                gating_mode=gating_mode,
+                bias=False
+            )
+            self.grass_scale = config.grass_scale  # x=10 uniform scaling
+            self.c_attn = None  # Not used in full block decomp mode
+
+        elif self.use_grassmann:
+            # Hybrid: Decompose into 3 blocks (Q, K, V) with head-level gating
             self.c_attn = BlockDecomposedLinear(
                 config.n_embd,
                 3 * config.n_embd,
@@ -76,8 +111,22 @@ class CausalSelfAttention(nn.Module):
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
 
-        # Q, K, V projections with Grassmann scaling and head-level gating
-        if self.use_grassmann:
+        # Q, K, V projections with Grassmann scaling and gating
+        if self.use_grassmann and self.use_full_block_decomp:
+            # Alternative: Full block decomposition with 16×16 grid
+            # Q, K, V each computed independently through their own grid
+            # Gating is built into FullBlockDecomposedLinear (per-head or per-block)
+            q = self.c_attn_q(x) * self.grass_scale  # (B, T, n_embd), already gated
+            k = self.c_attn_k(x) * self.grass_scale  # (B, T, n_embd), already gated
+            v = self.c_attn_v(x) * self.grass_scale  # (B, T, n_embd), already gated
+
+            # Reshape to heads
+            q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, n_head, T, head_size)
+            k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+            v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+
+        elif self.use_grassmann:
+            # Hybrid: 3-block decomposition with head-level gating
             # Step 1: Grassmann projection (NO gating yet)
             qkv = self.c_attn(x)  # (B, T, 3*n_embd), BlockDecomposedLinear with NO block gating
 
@@ -211,6 +260,10 @@ class GPTConfig:
     grass_lr: float = 8e-3  # Learning rate for Grassmann layers (8× boost)
     gate_lr: float = None  # Learning rate for gating networks (None = 2× learning_rate)
     embed_lr: float = None  # Learning rate for embeddings (None = 0.5× learning_rate)
+    # Full block decomposition (alternative to hybrid gating)
+    use_full_block_decomp: bool = False  # Use 16×16 grid decomposition for c_attn (768 blocks total)
+    full_block_size: int = 64  # Block size for full decomposition (64 for 1024d → 16×16 grid)
+    full_block_gating_mode: str = 'per_head'  # 'per_head', 'per_block', or 'per_block_segment'
 
 class GPT(nn.Module):
 
@@ -741,6 +794,8 @@ class GPT(nn.Module):
         # First pass: Handle BlockDecomposedLinear modules
         # These are used when use_grassmann=True to decompose rectangular matrices
         import re
+        from manifold import FullBlockDecomposedLinear
+
         for module_name, module in self.named_modules():
             if isinstance(module, BlockDecomposedLinear):
                 # Extract block index from module name (e.g., "transformer.h.2.attn.c_attn")
@@ -788,6 +843,58 @@ class GPT(nn.Module):
                     for i, gate in enumerate(module.block_gates):
                         if hasattr(gate, 'weight'):
                             block_decomposed_params.add(id(gate.weight))
+
+            elif isinstance(module, FullBlockDecomposedLinear):
+                # Full block decomposition: 16×16 grid for c_attn_{q,k,v}
+                # Extract block index from module name (e.g., "transformer.h.2.attn.c_attn_q")
+                match = re.search(r'\.h\.(\d+)\.', module_name)
+                block_idx = int(match.group(1)) if match else 0
+
+                # Determine layer type and configuration
+                if 'attn.c_attn' in module_name:
+                    # Full block decomposition for Q, K, or V
+                    # Rank is 50% of block_size (e.g., 32 for 64×64 blocks)
+                    rank = module.block_size // 2
+                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    lr = 8e-3  # 8× boost
+                    layer_type = 'c_attn_full'
+                else:
+                    continue
+
+                # Add each block in the grid as a separate Grassmann parameter
+                for h in range(module.n_blocks_out):
+                    for i in range(module.n_blocks_in):
+                        param_name = f"{module_name}.blocks.{h}.{i}.weight"
+                        block = module.blocks[h][i]
+                        if hasattr(block, 'weight'):
+                            grassmann_params.append({
+                                'name': param_name,
+                                'param': block.weight,
+                                'k': 1,  # Each block is already square
+                                'r': rank,
+                                'a': a,
+                                'b': b,
+                                'lr': lr,
+                                'scale': 1.0,  # Scaling handled externally
+                                'decomp_type': None,  # Already square
+                                'alpha': 0.01,
+                                'steps': 10,
+                                'tol': 1e-6
+                            })
+                            block_decomposed_params.add(id(block.weight))
+
+                # Mark gate params to skip (handled as AdamW gate params)
+                if hasattr(module, 'gates') and module.gates is not None:
+                    if module.gating_mode == 'per_block_segment':
+                        # ModuleList of ModuleList
+                        for h in range(module.n_blocks_out):
+                            for i in range(module.n_blocks_in):
+                                if hasattr(module.gates[h][i], 'weight'):
+                                    block_decomposed_params.add(id(module.gates[h][i].weight))
+                    else:
+                        # Single Linear layer
+                        if hasattr(module.gates, 'weight'):
+                            block_decomposed_params.add(id(module.gates.weight))
 
         # Parse phase variants
         base_phase = grassmann_phase
@@ -1014,6 +1121,19 @@ class GPT(nn.Module):
                     for i, gate in enumerate(module.block_gates):
                         if hasattr(gate, 'weight'):
                             gate_params.append(gate.weight)
+            elif isinstance(module, FullBlockDecomposedLinear):
+                # Collect gates from FullBlockDecomposedLinear
+                if hasattr(module, 'gates') and module.gates is not None:
+                    if module.gating_mode == 'per_block_segment':
+                        # ModuleList of ModuleList
+                        for h in range(module.n_blocks_out):
+                            for i in range(module.n_blocks_in):
+                                if hasattr(module.gates[h][i], 'weight'):
+                                    gate_params.append(module.gates[h][i].weight)
+                    else:
+                        # Single Linear layer
+                        if hasattr(module.gates, 'weight'):
+                            gate_params.append(module.gates.weight)
 
         for pn, p in param_dict.items():
             if id(p) in block_decomposed_params:
