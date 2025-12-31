@@ -10,3 +10,144 @@ W1231 03:14:19.545000 2554299 torch/distributed/run.py:793] ********************
   scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 /home/junyuren/nanoGPT/train.py:216: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
   scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/home/junyuren/nanoGPT/train.py", line 372, in <module>
+[rank3]:     scaler.scale(loss).backward()
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_tensor.py", line 581, in backward
+[rank3]:     torch.autograd.backward(
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/__init__.py", line 347, in backward
+[rank3]:     _engine_run_backward(
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+[rank3]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/function.py", line 307, in apply
+[rank3]:     return user_fn(self, *args)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2048, in backward
+[rank3]:     out = call_compiled_backward()
+[rank3]:           ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1980, in call_compiled_backward
+[rank3]:     out = call_func_at_runtime_with_args(
+[rank3]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/utils.py", line 124, in call_func_at_runtime_with_args
+[rank3]:     out = normalize_as_list(f(args))
+[rank3]:                             ^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 632, in _fn
+[rank3]:     return fn(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/codecache.py", line 1478, in __call__
+[rank3]:     return self.current_callable(inputs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/utils.py", line 1977, in run
+[rank3]:     return model(new_inputs)
+[rank3]:            ^^^^^^^^^^^^^^^^^
+[rank3]:   File "/tmp/torchinductor_junyuren/h4/ch4trxk4si4ufyzaagns5b5r67iwzlv5rmnclllw34nvudal4pil.py", line 222, in call
+[rank3]:     buf1 = empty_strided_cuda((32, 1024, 50304), (51511296, 50304, 1), torch.bfloat16)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.07 GiB. GPU 3 has a total capacity of 79.18 GiB of which 1.46 GiB is free. Including non-PyTorch memory, this process has 77.71 GiB memory in use. Of the allocated memory 75.17 GiB is allocated by PyTorch, and 1.38 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/home/junyuren/nanoGPT/train.py", line 372, in <module>
+[rank2]:     scaler.scale(loss).backward()
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_tensor.py", line 581, in backward
+[rank2]:     torch.autograd.backward(
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/__init__.py", line 347, in backward
+[rank2]:     _engine_run_backward(
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+[rank2]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/function.py", line 307, in apply
+[rank2]:     return user_fn(self, *args)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2048, in backward
+[rank2]:     out = call_compiled_backward()
+[rank2]:           ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1980, in call_compiled_backward
+[rank2]:     out = call_func_at_runtime_with_args(
+[rank2]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/utils.py", line 124, in call_func_at_runtime_with_args
+[rank2]:     out = normalize_as_list(f(args))
+[rank2]:                             ^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 632, in _fn
+[rank2]:     return fn(*args, **kwargs)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/codecache.py", line 1478, in __call__
+[rank2]:     return self.current_callable(inputs)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/utils.py", line 1977, in run
+[rank2]:     return model(new_inputs)
+[rank2]:            ^^^^^^^^^^^^^^^^^
+[rank2]:   File "/tmp/torchinductor_junyuren/pg/cpgph23iykj762a5gah2la25dhxb77xn4rbhiqfc2lpxvwuaj3sx.py", line 222, in call
+[rank2]:     buf1 = empty_strided_cuda((32, 1024, 50304), (51511296, 50304, 1), torch.bfloat16)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.07 GiB. GPU 2 has a total capacity of 79.18 GiB of which 1.44 GiB is free. Including non-PyTorch memory, this process has 77.73 GiB memory in use. Of the allocated memory 75.17 GiB is allocated by PyTorch, and 1.38 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/home/junyuren/nanoGPT/train.py", line 372, in <module>
+[rank1]:     scaler.scale(loss).backward()
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_tensor.py", line 581, in backward
+[rank1]:     torch.autograd.backward(
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/__init__.py", line 347, in backward
+[rank1]:     _engine_run_backward(
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+[rank1]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/autograd/function.py", line 307, in apply
+[rank1]:     return user_fn(self, *args)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2048, in backward
+[rank1]:     out = call_compiled_backward()
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1980, in call_compiled_backward
+[rank1]:     out = call_func_at_runtime_with_args(
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/utils.py", line 124, in call_func_at_runtime_with_args
+[rank1]:     out = normalize_as_list(f(args))
+[rank1]:                             ^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 632, in _fn
+[rank1]:     return fn(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/codecache.py", line 1478, in __call__
+[rank1]:     return self.current_callable(inputs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/_inductor/utils.py", line 1977, in run
+[rank1]:     return model(new_inputs)
+[rank1]:            ^^^^^^^^^^^^^^^^^
+[rank1]:   File "/tmp/torchinductor_junyuren/nz/cnzu5uyxifnvsf23j4lu2r2pv2tbxvw2semfc3hh2phg2lqnb37l.py", line 222, in call
+[rank1]:     buf1 = empty_strided_cuda((32, 1024, 50304), (51511296, 50304, 1), torch.bfloat16)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.07 GiB. GPU 1 has a total capacity of 79.18 GiB of which 1.44 GiB is free. Including non-PyTorch memory, this process has 77.73 GiB memory in use. Of the allocated memory 75.17 GiB is allocated by PyTorch, and 1.38 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+W1231 03:15:42.620000 2554299 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2554371 closing signal SIGTERM
+W1231 03:15:42.622000 2554299 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2554372 closing signal SIGTERM
+W1231 03:15:42.623000 2554299 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2554373 closing signal SIGTERM
+E1231 03:15:43.312000 2554299 torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 3 (pid: 2554374) of binary: /home/junyuren/.conda/envs/manifold_muon/bin/python3
+Traceback (most recent call last):
+  File "/home/junyuren/.conda/envs/manifold_muon/bin/torchrun", line 7, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-12-31_03:15:42
+  host      : n001
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 2554374)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
