@@ -3891,3 +3891,14 @@ iter 50: loss 9.1901, time 4917.90ms, mfu 31.34%
 iter 60: loss 8.8697, time 4951.22ms, mfu 31.29%
 iter 70: loss 8.7264, time 4962.33ms, mfu 31.24%
 iter 80: loss 8.4068, time 4944.54ms, mfu 31.21%
+iter 90: loss 8.2133, time 4991.84ms, mfu 31.15%
+iter 100: loss 8.0383, time 4895.14ms, mfu 31.15%
+iter 110: loss 7.6169, time 4973.73ms, mfu 31.11%
+iter 120: loss 7.5186, time 4978.81ms, mfu 31.06%
+iter 130: loss 7.3130, time 5010.00ms, mfu 31.00%
+iter 140: loss 7.4119, time 5029.54ms, mfu 30.94%
+iter 150: loss 7.1190, time 4995.60ms, mfu 30.90%
+iter 160: loss 7.2673, time 4936.80ms, mfu 30.91%
+iter 170: loss 7.0357, time 5001.18ms, mfu 30.87%
+iter 180: loss 6.9537, time 4979.58ms, mfu 30.85%
+iter 190: loss 6.8497, time 4973.38ms, mfu 30.83%
