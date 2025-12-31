@@ -1,0 +1,209 @@
+=== Test 1: Gradient zeroing fix (20 iterations, bfloat16) ===
+Overriding config with config/test_grassmann_sanity.py:
+# Sanity check config: verify Grassmann Muon implementation works
+# Run just 10 iterations to check for errors
+
+out_dir = 'out-test-sanity'
+eval_interval = 5
+eval_iters = 2
+log_interval = 1
+always_save_checkpoint = False
+eval_only = False
+
+wandb_log = False
+
+# dataset
+dataset = 'shakespeare_char'
+gradient_accumulation_steps = 1
+batch_size = 8  # small batch for quick test
+block_size = 128  # small context
+
+# Small model for quick test
+n_layer = 2
+n_head = 2
+n_embd = 64
+dropout = 0.0
+bias = False
+
+# AdamW optimizer
+learning_rate = 1e-3
+max_iters = 10  # just 10 iterations
+lr_decay_iters = 10
+min_lr = 1e-4
+weight_decay = 1e-1
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# learning rate schedule
+decay_lr = True
+warmup_iters = 2
+
+# Grassmann Muon optimizer
+use_grassmann = True
+grass_lr = 5e-4
+grass_a = 0.0
+grass_b = -1.0
+grass_rank = 40  # 62.5% of n_embd=64
+grass_alpha = 0.01
+grass_steps = 10
+grass_tol = 1e-6
+
+# system
+device = 'cuda'
+dtype = 'bfloat16'
+compile = False  # disable compile for faster startup in test
+
+Overriding: max_iters = 20
+tokens per iteration will be: 1,024
+found vocab_size = 65 (inside data/shakespeare_char/meta.pkl)
+Initializing a new model from scratch
+number of parameters: 0.10M
+Grassmann Muon: transformer.h.0.attn.c_proj.weight (64, 64)
+Grassmann Muon: transformer.h.1.attn.c_proj.weight (64, 64)
+
+=== Hybrid Optimizer Configuration ===
+Grassmann Muon parameters: 2 tensors, 8,192 params
+AdamW decay parameters: 8 tensors, 102,464 params
+AdamW no-decay parameters: 5 tensors, 320 params
+Grassmann config: a=0.0, b=-1.0, rank=40, lr=0.0005
+using fused AdamW: True
+
+=== Initializing Grassmann Weights ===
+Manifold: G_{0.0, -1.0, 40}
+Initialized transformer.h.0.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Initialized transformer.h.1.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Grassmann initialization complete.
+step 0: train loss 4.2129, val loss 4.2208
+iter 0: loss 4.2096, time 440.60ms, mfu -100.00%
+iter 1: loss 4.0977, time 155.55ms, mfu -100.00%
+iter 2: loss 4.0100, time 159.78ms, mfu -100.00%
+iter 3: loss 3.9422, time 158.67ms, mfu -100.00%
+iter 4: loss 3.8514, time 159.10ms, mfu -100.00%
+step 5: train loss 3.8368, val loss 3.8366
+saving checkpoint to out-test-sanity
+iter 5: loss 3.8337, time 178.27ms, mfu 0.00%
+iter 6: loss 3.7998, time 159.26ms, mfu 0.00%
+iter 7: loss 3.7609, time 158.70ms, mfu 0.00%
+iter 8: loss 3.7803, time 166.04ms, mfu 0.00%
+iter 9: loss 3.7495, time 157.90ms, mfu 0.00%
+step 10: train loss 3.7820, val loss 3.7939
+saving checkpoint to out-test-sanity
+iter 10: loss 3.7832, time 174.84ms, mfu 0.00%
+iter 11: loss 3.8042, time 158.56ms, mfu 0.00%
+iter 12: loss 3.8266, time 159.16ms, mfu 0.00%
+iter 13: loss 3.7695, time 159.34ms, mfu 0.00%
+iter 14: loss 3.7960, time 166.61ms, mfu 0.00%
+step 15: train loss 3.7923, val loss 3.7931
+saving checkpoint to out-test-sanity
+iter 15: loss 3.7934, time 178.21ms, mfu 0.00%
+iter 16: loss 3.8398, time 159.35ms, mfu 0.00%
+iter 17: loss 3.8679, time 159.33ms, mfu 0.00%
+iter 18: loss 3.8201, time 158.92ms, mfu 0.00%
+iter 19: loss 3.7898, time 159.24ms, mfu 0.00%
+step 20: train loss 3.8043, val loss 3.7996
+iter 20: loss 3.8076, time 170.26ms, mfu 0.00%
+
+=== Test 2: Mixed precision fix (20 iterations, float16) ===
+Overriding config with config/test_float16.py:
+# Test config for float16 mixed precision (validate bug fix #2)
+
+out_dir = 'out-test-float16'
+eval_interval = 5
+eval_iters = 2
+log_interval = 1
+always_save_checkpoint = False
+
+wandb_log = False
+
+dataset = 'shakespeare_char'
+gradient_accumulation_steps = 1
+batch_size = 8
+block_size = 128
+
+# Small model
+n_layer = 2
+n_head = 2
+n_embd = 64
+dropout = 0.0
+bias = False
+
+# AdamW
+learning_rate = 1e-3
+max_iters = 20  # 20 iterations to test gradient accumulation fix
+lr_decay_iters = 20
+min_lr = 1e-4
+weight_decay = 1e-1
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+decay_lr = True
+warmup_iters = 2
+
+# Grassmann
+use_grassmann = True
+grass_lr = 5e-4
+grass_a = 0.0
+grass_b = -1.0
+grass_rank = 40
+grass_alpha = 0.01
+grass_steps = 10
+grass_tol = 1e-6
+
+# CRITICAL: Use float16 to test mixed precision fix
+device = 'cuda'
+dtype = 'float16'  # Test the float16 bug fix
+compile = False
+
+tokens per iteration will be: 1,024
+found vocab_size = 65 (inside data/shakespeare_char/meta.pkl)
+Initializing a new model from scratch
+number of parameters: 0.10M
+Grassmann Muon: transformer.h.0.attn.c_proj.weight (64, 64)
+Grassmann Muon: transformer.h.1.attn.c_proj.weight (64, 64)
+
+=== Hybrid Optimizer Configuration ===
+Grassmann Muon parameters: 2 tensors, 8,192 params
+AdamW decay parameters: 8 tensors, 102,464 params
+AdamW no-decay parameters: 5 tensors, 320 params
+Grassmann config: a=0.0, b=-1.0, rank=40, lr=0.0005
+using fused AdamW: True
+
+=== Initializing Grassmann Weights ===
+Manifold: G_{0.0, -1.0, 40}
+Initialized transformer.h.0.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Initialized transformer.h.1.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Grassmann initialization complete.
+step 0: train loss 4.2129, val loss 4.2208
+iter 0: loss 4.2099, time 1296.08ms, mfu -100.00%
+iter 1: loss 4.0982, time 147.65ms, mfu -100.00%
+iter 2: loss 4.0099, time 146.39ms, mfu -100.00%
+iter 3: loss 3.9427, time 146.35ms, mfu -100.00%
+iter 4: loss 3.8500, time 145.44ms, mfu -100.00%
+step 5: train loss 3.8307, val loss 3.8307
+saving checkpoint to out-test-float16
+iter 5: loss 3.8278, time 182.22ms, mfu 0.00%
+iter 6: loss 3.7845, time 156.38ms, mfu 0.00%
+iter 7: loss 3.7315, time 154.43ms, mfu 0.00%
+iter 8: loss 3.7384, time 155.53ms, mfu 0.00%
+iter 9: loss 3.6805, time 156.65ms, mfu 0.00%
+step 10: train loss 3.6757, val loss 3.6902
+saving checkpoint to out-test-float16
+iter 10: loss 3.6764, time 163.04ms, mfu 0.00%
+iter 11: loss 3.6844, time 157.66ms, mfu 0.00%
+iter 12: loss 3.6912, time 154.68ms, mfu 0.00%
+iter 13: loss 3.6371, time 155.82ms, mfu 0.00%
+iter 14: loss 3.6546, time 154.95ms, mfu 0.00%
+step 15: train loss 3.6474, val loss 3.6374
+saving checkpoint to out-test-float16
+iter 15: loss 3.6482, time 173.07ms, mfu 0.00%
+iter 16: loss 3.5756, time 154.69ms, mfu 0.00%
+iter 17: loss 3.6344, time 156.08ms, mfu 0.00%
+iter 18: loss 3.5614, time 163.54ms, mfu 0.00%
+iter 19: loss 3.5469, time 157.03ms, mfu 0.00%
+step 20: train loss 3.5789, val loss 3.5815
+saving checkpoint to out-test-float16
+iter 20: loss 3.5868, time 173.00ms, mfu 0.00%
+
+=== Verification complete ===

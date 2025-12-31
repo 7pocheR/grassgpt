@@ -13,6 +13,7 @@ from .grassmann_ops import (
     initialize_on_grassmann,
 )
 from .msign import msign
+from .block_decomposition import BlockDecomposedLinear
 
 __all__ = [
     'grassmann_muon',
@@ -21,4 +22,5 @@ __all__ = [
     'retract_to_grassmann',
     'initialize_on_grassmann',
     'msign',
+    'BlockDecomposedLinear',
 ]

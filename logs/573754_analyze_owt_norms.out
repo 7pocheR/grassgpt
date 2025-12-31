@@ -1,0 +1,112 @@
+Loading checkpoint: /net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-baseline/ckpt.pt
+Checkpoint info:
+  Iteration: 68000
+  Best val loss: 3.5871
+
+================================================================================
+PER-LAYER ANALYSIS
+================================================================================
+
+### c_attn
+
+| Layer | Op Norm | Stable Rank | Eff Rank |
+|-------|---------|-------------|----------|
+| 0 | 5.5366 | 326 | 321.7 |
+| 1 | 6.2932 | 328 | 321.5 |
+| 2 | 5.1344 | 326 | 323.8 |
+| 3 | 4.5876 | 325 | 323.4 |
+| 4 | 3.6494 | 340 | 336.9 |
+| 5 | 3.5596 | 353 | 348.5 |
+
+### mlp.c_fc
+
+| Layer | Op Norm | Stable Rank | Eff Rank |
+|-------|---------|-------------|----------|
+| 0 | 9.4530 | 328 | 325.7 |
+| 1 | 7.8706 | 342 | 333.1 |
+| 2 | 7.3928 | 337 | 327.7 |
+| 3 | 9.7790 | 333 | 324.0 |
+| 4 | 5.5511 | 343 | 335.3 |
+| 5 | 5.2520 | 347 | 340.6 |
+
+### attn.c_proj
+
+| Layer | Op Norm | Stable Rank | Eff Rank |
+|-------|---------|-------------|----------|
+| 0 | 3.0614 | 219 | 213.8 |
+| 1 | 2.2574 | 222 | 232.2 |
+| 2 | 1.8529 | 251 | 263.2 |
+| 3 | 1.9136 | 252 | 267.9 |
+| 4 | 2.8132 | 273 | 285.7 |
+| 5 | 4.1532 | 260 | 274.9 |
+
+### mlp.c_proj
+
+| Layer | Op Norm | Stable Rank | Eff Rank |
+|-------|---------|-------------|----------|
+| 0 | 6.3565 | 312 | 285.0 |
+| 1 | 5.5284 | 322 | 301.1 |
+| 2 | 5.1598 | 319 | 306.9 |
+| 3 | 4.5261 | 327 | 314.3 |
+| 4 | 4.5299 | 333 | 317.0 |
+| 5 | 8.2197 | 330 | 315.7 |
+
+================================================================================
+SUMMARY STATISTICS (Averaged across layers)
+================================================================================
+
+c_attn:
+  Operator norm:  mean=4.7935, std=0.9825, min=3.5596, max=6.2932
+  Stable rank:    mean=333.0, std=10.3
+  Effective rank: mean=329.3, std=10.1
+
+mlp.c_fc:
+  Operator norm:  mean=7.5497, std=1.7317, min=5.2520, max=9.7790
+  Stable rank:    mean=338.3, std=6.4
+  Effective rank: mean=331.0, std=5.8
+
+attn.c_proj:
+  Operator norm:  mean=2.6753, std=0.7941, min=1.8529, max=4.1532
+  Stable rank:    mean=246.2, std=19.5
+  Effective rank: mean=256.3, std=25.1
+
+mlp.c_proj:
+  Operator norm:  mean=5.7201, std=1.2810, min=4.5261, max=8.2197
+  Stable rank:    mean=323.8, std=7.1
+  Effective rank: mean=306.7, std=11.2
+
+================================================================================
+RECOMMENDED GRASSMANN CONFIGS
+================================================================================
+
+# For uniform scaling across all layers:
+grass_scale_c_attn = 4.7935  # (was 4.6293 from Shakespeare)
+grass_scale_mlp_fc = 7.5497  # (was 10.1372 from Shakespeare)
+
+# For stable_rank_x2 strategy:
+grass_rank_c_attn = 666  # 2× stable_rank
+grass_rank_mlp_fc = 676  # 2× stable_rank
+
+# For per-block strategy:
+grass_rank_c_attn = [326, 328, 326, 325, 340, 353]
+grass_scale_c_attn = [5.5366, 6.2932, 5.1344, 4.5876, 3.6494, 3.5596]
+grass_rank_mlp_fc = [328, 342, 337, 333, 343, 347]
+grass_scale_mlp_fc = [9.453, 7.8706, 7.3928, 9.779, 5.5511, 5.252]
+
+================================================================================
+COMPARISON: Shakespeare vs OpenWebText
+================================================================================
+
+c_attn operator norm:
+  Shakespeare: 4.6293
+  OpenWebText: 4.7935
+  Difference:  +0.1642 (+3.5%)
+
+mlp.c_fc operator norm:
+  Shakespeare: 10.1372
+  OpenWebText: 7.5497
+  Difference:  -2.5875 (-25.5%)
+
+Impact of using Shakespeare norms on OpenWebText:
+  c_attn:   UNDER-scaled by -3.4%
+  mlp.c_fc: OVER-scaled by 34.3%

@@ -1,0 +1,188 @@
+Overriding config with config/train_openwebtext_grassmann.py:
+# Train Grassmann GPT on OpenWebText (stable_rank_x2 strategy)
+# Model: 12L x 768d (~40M params)
+# Dataset: 9B tokens
+# Apply winning config from Shakespeare: stable_rank_x2
+
+# I/O
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-grassmann'
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+always_save_checkpoint = True
+
+wandb_log = False
+wandb_project = 'openwebtext'
+wandb_run_name = 'grassmann-12L-768d-stable-rank-x2'
+
+# Data
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+gradient_accumulation_steps = 40  # Simulate batch size of 480K tokens
+batch_size = 12  # What fits in H100 memory
+block_size = 1024  # OpenWebText uses 1024 context
+
+# Model - 12L x 768d (~40M params)
+n_layer = 12
+n_head = 12
+n_embd = 768
+dropout = 0.1  # Half of baseline (Grassmann needs less dropout)
+
+# AdamW optimizer (for non-Grassmann params)
+learning_rate = 6e-4  # Same as baseline for AdamW components
+max_iters = 100000
+lr_decay_iters = 100000
+min_lr = 6e-5
+beta2 = 0.95
+weight_decay = 0.1
+
+warmup_iters = 2000
+
+# System
+dtype = 'bfloat16'
+compile = True
+
+# Grassmann configuration - stable_rank_x2 strategy
+use_grassmann = True
+
+# Stable rank from Shakespeare baseline (6L x 384d):
+# - c_attn: stable_rank ~24, so stable_rank_x2 = 48
+# - mlp.c_fc: stable_rank ~10, so stable_rank_x2 = 20
+#
+# For OpenWebText (12L x 768d), scale proportionally:
+# - Width ratio: 768/384 = 2×
+# - stable_rank_x2 scaled: c_attn: 48×2 = 96, mlp.c_fc: 20×2 = 40
+
+grass_rank_c_attn = 96   # 2× stable_rank for c_attn
+grass_rank_mlp_fc = 40   # 2× stable_rank for mlp.c_fc
+
+# Operator norm scaling (will need to measure from baseline first)
+# Using conservative estimate based on Shakespeare scaling
+# Shakespeare: c_attn ~4.6, mlp.c_fc ~10.1
+# Expect similar for OpenWebText due to initialization
+grass_scale_c_attn = 4.6
+grass_scale_mlp_fc = 10.1
+
+# Learning rates (from Shakespeare winning config)
+grass_lr = 6e-3  # ~10× boost from baseline (stable_rank_x2 used 6e-3 on Shakespeare)
+
+# Grassmann parametrization
+grass_a = 1.0  # c_attn (no skip)
+grass_b = 0.0
+grass_alpha = 0.01
+grass_steps = 10
+grass_tol = 1e-6
+
+tokens per iteration will be: 491,520
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+number of parameters: 123.59M
+
+=== Phase phase0 Grassmann Configuration ===
+
+Per-block configuration (12 blocks):
+  c_attn ranks:       [96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96]
+  c_attn scales:      ['4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60', '4.60']
+  mlp.c_fc ranks:     [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40]
+  mlp.c_fc scales:    ['10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10', '10.10']
+Grassmann Muon parameters: 12 weight matrices, 7,077,888 params
+AdamW decay parameters: 38 tensors, 117,276,672 params
+AdamW no-decay parameters: 25 tensors, 19,200 params
+  transformer.h.0.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.1.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.2.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.3.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.4.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.5.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.6.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.7.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.8.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.9.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.10.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+  transformer.h.11.attn.c_proj.weight: k=1, G_{0.0,-1.0,None}, lr=0.0006, scale=1.0, type=None
+using fused AdamW: True
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 12
+
+Initializing attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.0.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.1.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.2.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.3.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.4.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.5.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.6.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.7.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.8.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.9.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.10.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+  Initialized transformer.h.11.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.1.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.1.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.2.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.2.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.3.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.3.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.4.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.4.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.5.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.5.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.6.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.6.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.7.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.7.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.8.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.8.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.9.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.9.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.10.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.10.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Initializing transformer.h.11.attn.c_proj.: k=1, G_{0.0,-1.0,None}, type=None
+  Initialized transformer.h.11.attn.c_proj.weight (768, 768) on G_{0.0,-1.0,None}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.1
+Grassmann components: dropout = 0.05
+Component-specific dropout setup complete.
+compiling the model... (takes a ~minute)
+step 0: train loss 10.8931, val loss 10.8942
+iter 0: loss 10.8977, time 26714.39ms, mfu -100.00%
+iter 10: loss 10.7601, time 2761.99ms, mfu 48.75%
+iter 20: loss 10.1832, time 2296.90ms, mfu 49.74%
+iter 30: loss 9.6427, time 2327.79ms, mfu 50.55%
+iter 40: loss 9.3116, time 2353.97ms, mfu 51.22%
+iter 50: loss 9.2332, time 2350.32ms, mfu 51.83%
+iter 60: loss 8.8731, time 2310.94ms, mfu 52.47%
+iter 70: loss 8.6865, time 2302.96ms, mfu 53.07%
+iter 80: loss 8.5690, time 2343.77ms, mfu 53.51%
+iter 90: loss 8.1060, time 2311.52ms, mfu 53.98%
+iter 100: loss 8.0529, time 2271.00ms, mfu 54.51%
+iter 110: loss 7.7891, time 2363.59ms, mfu 54.76%
+iter 120: loss 7.5757, time 2368.14ms, mfu 54.97%
+iter 130: loss 7.4298, time 2356.39ms, mfu 55.19%
+iter 140: loss 7.4880, time 2284.47ms, mfu 55.56%
+iter 150: loss 7.3695, time 2356.01ms, mfu 55.72%
+iter 160: loss 6.9169, time 2347.84ms, mfu 55.89%
+iter 170: loss 6.7953, time 2379.59ms, mfu 55.96%
+iter 180: loss 6.8938, time 2376.27ms, mfu 56.03%
+iter 190: loss 6.6829, time 2387.04ms, mfu 56.07%
+iter 200: loss 6.7957, time 2261.27ms, mfu 56.41%
+iter 210: loss 6.6031, time 2393.76ms, mfu 56.40%
+iter 220: loss 6.6723, time 2297.25ms, mfu 56.62%
+iter 230: loss 6.4382, time 2385.67ms, mfu 56.60%
+iter 240: loss 6.3638, time 2354.83ms, mfu 56.66%
+iter 250: loss 6.5298, time 2381.40ms, mfu 56.65%

@@ -1,0 +1,10 @@
+/home/junyuren/nanoGPT/train.py:207: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+Traceback (most recent call last):
+  File "/home/junyuren/nanoGPT/train.py", line 212, in <module>
+    optimizer, grassmann_params = model.configure_optimizers_grassmann_phases(
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/nanoGPT/model.py", line 672, in configure_optimizers_grassmann_phases
+    'r': rank,
+         ^^^^
+NameError: name 'rank' is not defined. Did you mean: 'range'?

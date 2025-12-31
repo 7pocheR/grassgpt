@@ -1,0 +1,140 @@
+Loading checkpoint: /net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-baseline/ckpt.pt
+Checkpoint info:
+  Iteration: 69000
+  Best val loss: 3.5737
+
+================================================================================
+PER-LAYER ANALYSIS
+================================================================================
+
+### c_attn
+
+| Layer | Op Norm | Rank@50% | Rank@85% | Rank@95% | Rank@99% | Eff Rank |
+|-------|---------|----------|----------|----------|----------|----------|
+| 0 | 5.5090 | 56 | 172 | 250 | 326 | 321.7 |
+| 1 | 6.2587 | 57 | 170 | 252 | 328 | 321.5 |
+| 2 | 5.1338 | 65 | 176 | 252 | 325 | 323.7 |
+| 3 | 4.5625 | 63 | 175 | 252 | 325 | 323.3 |
+| 4 | 3.6367 | 75 | 192 | 273 | 340 | 336.8 |
+| 5 | 3.5554 | 81 | 211 | 293 | 353 | 348.4 |
+
+### mlp.c_fc
+
+| Layer | Op Norm | Rank@50% | Rank@85% | Rank@95% | Rank@99% | Eff Rank |
+|-------|---------|----------|----------|----------|----------|----------|
+| 0 | 9.3966 | 56 | 183 | 263 | 328 | 325.5 |
+| 1 | 7.8258 | 59 | 192 | 277 | 342 | 332.8 |
+| 2 | 7.3687 | 56 | 182 | 267 | 337 | 327.4 |
+| 3 | 9.7914 | 49 | 175 | 261 | 333 | 323.7 |
+| 4 | 5.5176 | 64 | 189 | 275 | 343 | 335.2 |
+| 5 | 5.2232 | 68 | 201 | 284 | 347 | 340.5 |
+
+### attn.c_proj
+
+| Layer | Op Norm | Rank@50% | Rank@85% | Rank@95% | Rank@99% | Eff Rank |
+|-------|---------|----------|----------|----------|----------|----------|
+| 0 | 3.0301 | 14 | 62 | 133 | 219 | 213.9 |
+| 1 | 2.2419 | 31 | 91 | 151 | 222 | 231.9 |
+| 2 | 1.8444 | 41 | 124 | 185 | 251 | 263.0 |
+| 3 | 1.9037 | 48 | 133 | 191 | 252 | 267.7 |
+| 4 | 2.7918 | 48 | 154 | 214 | 273 | 285.7 |
+| 5 | 4.1183 | 40 | 142 | 201 | 261 | 274.9 |
+
+### mlp.c_proj
+
+| Layer | Op Norm | Rank@50% | Rank@85% | Rank@95% | Rank@99% | Eff Rank |
+|-------|---------|----------|----------|----------|----------|----------|
+| 0 | 6.3646 | 30 | 108 | 200 | 312 | 284.7 |
+| 1 | 5.5301 | 39 | 133 | 227 | 322 | 300.8 |
+| 2 | 5.1483 | 42 | 152 | 238 | 319 | 306.6 |
+| 3 | 4.5025 | 44 | 163 | 250 | 327 | 314.1 |
+| 4 | 4.4915 | 41 | 162 | 253 | 333 | 316.8 |
+| 5 | 8.1867 | 37 | 162 | 251 | 330 | 315.5 |
+
+================================================================================
+SUMMARY STATISTICS (Averaged across layers)
+================================================================================
+
+c_attn:
+  Operator norm:  mean=4.7760, std=0.9744, min=3.5554, max=6.2587
+  Rank@50%:       mean=66.2, std=9.1
+  Rank@85%:       mean=182.7, std=14.5
+  Rank@95%:       mean=262.0, std=15.9
+  Rank@99%:       mean=332.8, std=10.4
+  Effective rank: mean=329.2, std=10.0
+
+mlp.c_fc:
+  Operator norm:  mean=7.5206, std=1.7360, min=5.2232, max=9.7914
+  Rank@50%:       mean=58.7, std=6.1
+  Rank@85%:       mean=187.0, std=8.3
+  Rank@95%:       mean=271.2, std=8.2
+  Rank@99%:       mean=338.3, std=6.4
+  Effective rank: mean=330.9, std=5.9
+
+attn.c_proj:
+  Operator norm:  mean=2.6550, std=0.7845, min=1.8444, max=4.1183
+  Rank@50%:       mean=37.0, std=11.8
+  Rank@85%:       mean=117.7, std=31.6
+  Rank@95%:       mean=179.2, std=28.3
+  Rank@99%:       mean=246.3, std=19.7
+  Effective rank: mean=256.2, std=25.1
+
+mlp.c_proj:
+  Operator norm:  mean=5.7040, std=1.2815, min=4.4915, max=8.1867
+  Rank@50%:       mean=38.8, std=4.5
+  Rank@85%:       mean=146.7, std=20.2
+  Rank@95%:       mean=236.5, std=18.7
+  Rank@99%:       mean=323.8, std=7.1
+  Effective rank: mean=306.4, std=11.2
+
+================================================================================
+RECOMMENDED GRASSMANN CONFIGS
+================================================================================
+
+# For uniform scaling across all layers:
+grass_scale_c_attn = 4.7760  # (was 4.6293 from Shakespeare)
+grass_scale_mlp_fc = 7.5206  # (was 10.1372 from Shakespeare)
+
+# Rank recommendations at different variance thresholds:
+# c_attn ranks: @50%=66, @85%=182, @95%=262, @99%=332
+# mlp.c_fc ranks: @50%=58, @85%=187, @95%=271, @99%=338
+
+# Conservative (50% variance):
+grass_rank_c_attn = 66
+grass_rank_mlp_fc = 58
+
+# Moderate (85% variance):
+grass_rank_c_attn = 182
+grass_rank_mlp_fc = 187
+
+# Aggressive (95% variance):
+grass_rank_c_attn = 262
+grass_rank_mlp_fc = 271
+
+# Very Aggressive (99% variance - original stable_rank_x2 x2):
+grass_rank_c_attn = 665
+grass_rank_mlp_fc = 676
+
+# For per-block strategy (99% variance):
+grass_rank_c_attn = [326, 328, 325, 325, 340, 353]
+grass_scale_c_attn = [5.509, 6.2587, 5.1338, 4.5625, 3.6367, 3.5554]
+grass_rank_mlp_fc = [328, 342, 337, 333, 343, 347]
+grass_scale_mlp_fc = [9.3966, 7.8258, 7.3687, 9.7914, 5.5176, 5.2232]
+
+================================================================================
+COMPARISON: Shakespeare vs OpenWebText
+================================================================================
+
+c_attn operator norm:
+  Shakespeare: 4.6293
+  OpenWebText: 4.7760
+  Difference:  +0.1467 (+3.2%)
+
+mlp.c_fc operator norm:
+  Shakespeare: 10.1372
+  OpenWebText: 7.5206
+  Difference:  -2.6166 (-25.8%)
+
+Impact of using Shakespeare norms on OpenWebText:
+  c_attn:   UNDER-scaled by -3.1%
+  mlp.c_fc: OVER-scaled by 34.8%

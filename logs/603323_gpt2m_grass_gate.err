@@ -1,0 +1,93 @@
+W1226 20:54:51.961000 1579925 torch/distributed/run.py:793] 
+W1226 20:54:51.961000 1579925 torch/distributed/run.py:793] *****************************************
+W1226 20:54:51.961000 1579925 torch/distributed/run.py:793] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W1226 20:54:51.961000 1579925 torch/distributed/run.py:793] *****************************************
+/home/junyuren/nanoGPT/train.py:209: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+/home/junyuren/nanoGPT/train.py:209: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+/home/junyuren/nanoGPT/train.py:209: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+/home/junyuren/nanoGPT/train.py:209: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/home/junyuren/nanoGPT/train.py", line 310, in <module>
+[rank2]:     X, Y = get_batch('train') # fetch the very first batch
+[rank2]:            ^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/nanoGPT/train.py", line 132, in get_batch
+[rank2]:     data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/numpy/_core/memmap.py", line 236, in __new__
+[rank2]:     f_ctx = open(
+[rank2]:             ^^^^^
+[rank2]: FileNotFoundError: [Errno 2] No such file or directory: 'data/openwebtext/train.bin'
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/home/junyuren/nanoGPT/train.py", line 310, in <module>
+[rank1]:     X, Y = get_batch('train') # fetch the very first batch
+[rank1]:            ^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/nanoGPT/train.py", line 132, in get_batch
+[rank1]:     data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/numpy/_core/memmap.py", line 236, in __new__
+[rank1]:     f_ctx = open(
+[rank1]:             ^^^^^
+[rank1]: FileNotFoundError: [Errno 2] No such file or directory: 'data/openwebtext/train.bin'
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/home/junyuren/nanoGPT/train.py", line 310, in <module>
+[rank0]:     X, Y = get_batch('train') # fetch the very first batch
+[rank0]:            ^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/junyuren/nanoGPT/train.py", line 132, in get_batch
+[rank0]:     data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/numpy/_core/memmap.py", line 236, in __new__
+[rank0]:     f_ctx = open(
+[rank0]:             ^^^^^
+[rank0]: FileNotFoundError: [Errno 2] No such file or directory: 'data/openwebtext/train.bin'
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/home/junyuren/nanoGPT/train.py", line 310, in <module>
+[rank3]:     X, Y = get_batch('train') # fetch the very first batch
+[rank3]:            ^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/nanoGPT/train.py", line 132, in get_batch
+[rank3]:     data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/numpy/_core/memmap.py", line 236, in __new__
+[rank3]:     f_ctx = open(
+[rank3]:             ^^^^^
+[rank3]: FileNotFoundError: [Errno 2] No such file or directory: 'data/openwebtext/train.bin'
+[rank0]:[W1226 20:55:54.536111258 ProcessGroupNCCL.cpp:1250] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+W1226 20:55:56.200000 1579925 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 1580054 closing signal SIGTERM
+W1226 20:55:56.203000 1579925 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 1580056 closing signal SIGTERM
+W1226 20:55:56.205000 1579925 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 1580057 closing signal SIGTERM
+E1226 20:55:56.571000 1579925 torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 1 (pid: 1580055) of binary: /home/junyuren/.conda/envs/manifold_muon/bin/python3
+Traceback (most recent call last):
+  File "/home/junyuren/.conda/envs/manifold_muon/bin/torchrun", line 7, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-12-26_20:55:56
+  host      : m002
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1580055)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

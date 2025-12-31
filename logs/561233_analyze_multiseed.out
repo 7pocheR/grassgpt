@@ -1,0 +1,39 @@
+Found 10 checkpoints:
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed42/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed43/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed44/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed45/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed46/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed47/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed48/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed49/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed50/ckpt.pt
+  /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed51/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed42/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed43/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed44/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed45/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed46/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed47/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed48/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed49/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed50/ckpt.pt
+
+Analyzing: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline-seed51/ckpt.pt
+
+✓ Analysis complete!
+  Report: baseline_weight_analysis_multiseed.md
+
+=== Key Findings (Averaged Across Seeds) ===
+c_attn         : operator norm = 4.6293 ± 0.0808 → scale Grassmann by this factor
+mlp.c_fc       : operator norm = 10.1372 ± 0.2089 → scale Grassmann by this factor
+attn.c_proj    : operator norm = 1.7427 ± 0.0423 → scale Grassmann by this factor

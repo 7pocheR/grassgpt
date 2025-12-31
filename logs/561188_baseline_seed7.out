@@ -1,0 +1,10 @@
+Overriding config with /tmp/baseline_seed49.py:
+# Import base config
+exec(open('config/train_baby_baseline_multiseed.py').read())
+
+# Override with seed-specific values
+import torch
+torch.manual_seed(49)
+torch.cuda.manual_seed(49)
+out_dir = 'out-baby-baseline-seed49'
+

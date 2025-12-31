@@ -1,0 +1,91 @@
+Overriding config with config/test_grassmann_sanity.py:
+# Sanity check config: verify Grassmann Muon implementation works
+# Run just 10 iterations to check for errors
+
+out_dir = 'out-test-sanity'
+eval_interval = 5
+eval_iters = 2
+log_interval = 1
+always_save_checkpoint = False
+eval_only = False
+
+wandb_log = False
+
+# dataset
+dataset = 'shakespeare_char'
+gradient_accumulation_steps = 1
+batch_size = 8  # small batch for quick test
+block_size = 128  # small context
+
+# Small model for quick test
+n_layer = 2
+n_head = 2
+n_embd = 64
+dropout = 0.0
+bias = False
+
+# AdamW optimizer
+learning_rate = 1e-3
+max_iters = 10  # just 10 iterations
+lr_decay_iters = 10
+min_lr = 1e-4
+weight_decay = 1e-1
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# learning rate schedule
+decay_lr = True
+warmup_iters = 2
+
+# Grassmann Muon optimizer
+use_grassmann = True
+grass_lr = 5e-4
+grass_a = 0.0
+grass_b = -1.0
+grass_rank = 40  # 62.5% of n_embd=64
+grass_alpha = 0.01
+grass_steps = 10
+grass_tol = 1e-6
+
+# system
+device = 'cuda'
+dtype = 'bfloat16'
+compile = False  # disable compile for faster startup in test
+
+tokens per iteration will be: 1,024
+found vocab_size = 65 (inside data/shakespeare_char/meta.pkl)
+Initializing a new model from scratch
+number of parameters: 0.10M
+Grassmann Muon: transformer.h.0.attn.c_proj.weight (64, 64)
+Grassmann Muon: transformer.h.1.attn.c_proj.weight (64, 64)
+
+=== Hybrid Optimizer Configuration ===
+Grassmann Muon parameters: 2 tensors, 8,192 params
+AdamW decay parameters: 8 tensors, 102,464 params
+AdamW no-decay parameters: 5 tensors, 320 params
+Grassmann config: a=0.0, b=-1.0, rank=40, lr=0.0005
+using fused AdamW: True
+
+=== Initializing Grassmann Weights ===
+Manifold: G_{0.0, -1.0, 40}
+Initialized transformer.h.0.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Initialized transformer.h.1.attn.c_proj.weight (64, 64) on G_{0.0,-1.0,40}
+Grassmann initialization complete.
+step 0: train loss 4.2129, val loss 4.2208
+iter 0: loss 4.2096, time 4362.53ms, mfu -100.00%
+iter 1: loss 4.0977, time 145.43ms, mfu -100.00%
+iter 2: loss 4.0101, time 144.62ms, mfu -100.00%
+iter 3: loss 3.9424, time 144.90ms, mfu -100.00%
+iter 4: loss 3.8516, time 144.48ms, mfu -100.00%
+step 5: train loss 3.8371, val loss 3.8367
+saving checkpoint to out-test-sanity
+iter 5: loss 3.8341, time 177.92ms, mfu 0.00%
+iter 6: loss 3.8000, time 145.66ms, mfu 0.00%
+iter 7: loss 3.7615, time 144.82ms, mfu 0.00%
+iter 8: loss 3.7858, time 144.86ms, mfu 0.00%
+iter 9: loss 3.7626, time 144.83ms, mfu 0.00%
+step 10: train loss 3.7848, val loss 3.7964
+saving checkpoint to out-test-sanity
+iter 10: loss 3.7826, time 160.83ms, mfu 0.00%
+Sanity check complete!

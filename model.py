@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # Manifold Muon optimizer support
-from manifold import grassmann_muon_update, initialize_on_grassmann
+from manifold import grassmann_muon_update, initialize_on_grassmann, BlockDecomposedLinear
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -34,9 +34,29 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
-        # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
-        # output projection
+
+        # Q, K, V projections - use block decomposition if Grassmann enabled
+        self.use_grassmann = getattr(config, 'use_grassmann', False)
+        if self.use_grassmann:
+            # Decompose into 3 blocks (Q, K, V) with NO frozen scaling, NO block gating
+            self.c_attn = BlockDecomposedLinear(
+                config.n_embd,
+                3 * config.n_embd,
+                n_blocks=3,
+                frozen_scale=None,  # Components split immediately, no norm issue
+                use_block_gating=False,  # Use head-level gates instead
+                bias=False  # Grassmann requires bias=False
+            )
+            self.grass_scale = config.grass_scale  # x=10 uniform scaling
+
+            # Head-level gating (48 gates: 16 heads × 3 QKV)
+            # Provides input-dependent magnitude for each head independently
+            self.head_gates = nn.Linear(config.n_embd, 3 * config.n_head, bias=False)
+        else:
+            # Standard combined linear
+            self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
+
+        # Output projection - ALWAYS AdamW (faces skip connection)
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
@@ -52,15 +72,45 @@ class CausalSelfAttention(nn.Module):
             self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
                                         .view(1, 1, config.block_size, config.block_size))
 
+
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
 
-        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        # NO scaling after c_attn - components split immediately, temporary concatenated norm irrelevant
-        q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        # Q, K, V projections with Grassmann scaling and head-level gating
+        if self.use_grassmann:
+            # Step 1: Grassmann projection (NO gating yet)
+            qkv = self.c_attn(x)  # (B, T, 3*n_embd), BlockDecomposedLinear with NO block gating
+
+            # Step 2: Apply global scaling
+            qkv = qkv * self.grass_scale  # Scale by 10.0
+
+            # Step 3: Split into Q, K, V
+            q, k, v = qkv.split(self.n_embd, dim=2)  # Each (B, T, n_embd)
+
+            # Step 4: Reshape to heads
+            q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, n_head, T, head_size)
+            k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+            v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+
+            # Step 5: Compute and apply per-head gates
+            gates = torch.sigmoid(self.head_gates(x))  # (B, T, 3*n_head) = (B, T, 48)
+            gate_q, gate_k, gate_v = gates.split(self.n_head, dim=-1)  # Each (B, T, n_head)
+
+            # Reshape gates: (B, T, n_head) → (B, n_head, T, 1)
+            gate_q = gate_q.transpose(1, 2).unsqueeze(-1)
+            gate_k = gate_k.transpose(1, 2).unsqueeze(-1)
+            gate_v = gate_v.transpose(1, 2).unsqueeze(-1)
+
+            # Apply per-head gating
+            q = q * gate_q
+            k = k * gate_k
+            v = v * gate_v
+        else:
+            # Standard forward (no Grassmann, no gating)
+            q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+            k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+            q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+            v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         if self.flash:
@@ -73,7 +123,9 @@ class CausalSelfAttention(nn.Module):
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
             y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # Re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, C)
 
         # output projection
         y = self.resid_dropout(self.c_proj(y))
@@ -83,23 +135,42 @@ class MLP(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
-        self.gelu    = nn.GELU()
-        self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
+
+        # Expansion layer - use block decomposition if Grassmann enabled
+        self.use_grassmann = getattr(config, 'use_grassmann', False)
+        if self.use_grassmann:
+            # Decompose into 4 blocks with frozen 0.5× scaling and block-level gating
+            self.c_fc = BlockDecomposedLinear(
+                config.n_embd,
+                4 * config.n_embd,
+                n_blocks=4,
+                frozen_scale=0.5,  # CRITICAL: 0.5× to normalize √4 → 1
+                use_block_gating=True,  # 4 block-level gates (one per MLP block)
+                bias=False  # Grassmann requires bias=False
+            )
+            self.grass_scale = config.grass_scale  # x=10 uniform scaling
+            # Note: Block-level gating happens inside BlockDecomposedLinear
+        else:
+            # Standard linear
+            self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
+
+        self.gelu = nn.GELU()
+
+        # Contraction layer - ALWAYS AdamW (faces skip connection)
+        self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
         self.dropout = nn.Dropout(config.dropout)
 
-        # Frozen scaling layer for vertical decomposition norm preservation
-        # Will be initialized to (1/√4)×I = 0.5×I after c_fc if using block decomposition
-        self.c_fc_scale = None
-
     def forward(self, x):
-        x = self.c_fc(x)
-        # Apply 1/√k scaling for vertical decomposition if configured
-        if self.c_fc_scale is not None:
-            x = self.c_fc_scale(x)
-        x = self.gelu(x)
-        x = self.c_proj(x)
-        # No scaling after c_proj (horizontal decomposition naturally preserves norm)
+        # Apply c_fc with Grassmann scaling if enabled
+        if self.use_grassmann:
+            # Grassmann: ||W||_op=1, block gating (inside BlockDecomposedLinear), frozen 0.5×, then grass_scale
+            # Block gating provides input-dependent magnitude per MLP block
+            h = self.c_fc(x) * self.grass_scale  # (B, T, 4*n_embd), already block-gated inside
+        else:
+            h = self.c_fc(x)
+
+        x = self.gelu(h)
+        x = self.c_proj(x)  # AdamW layer (faces skip)
         x = self.dropout(x)
         return x
 
@@ -131,6 +202,15 @@ class GPTConfig:
     dropout: float = 0.0
     grassmann_dropout: float = None  # Dropout for Grassmann components (if None, use dropout/2)
     bias: bool = True # True: bias in Linears and LayerNorms, like GPT-2. False: a bit better and faster
+    # Grassmann manifold optimization with hybrid gating
+    use_grassmann: bool = False  # Enable Grassmann for c_attn, mlp.c_fc (not skip-facing)
+    grass_rank: int = None  # Rank for G_{a,b,r} (if None, use 50% of n_embd)
+    grass_scale: float = 10.0  # Uniform x=10 scaling factor
+    grass_a: float = 1.0  # G_{a,b,r} first eigenvalue (1.0 for non-skip layers)
+    grass_b: float = 0.0  # G_{a,b,r} second eigenvalue (0.0 for non-skip layers)
+    grass_lr: float = 8e-3  # Learning rate for Grassmann layers (8× boost)
+    gate_lr: float = None  # Learning rate for gating networks (None = 2× learning_rate)
+    embed_lr: float = None  # Learning rate for embeddings (None = 0.5× learning_rate)
 
 class GPT(nn.Module):
 
@@ -361,6 +441,32 @@ class GPT(nn.Module):
             for block in self.transformer.h:
                 block.remove_attn_skip = True
             print(f"  Removed skip connections from {len(self.transformer.h)} blocks")
+
+    def init_grassmann_block_weights(self, a=1.0, b=0.0, rank=None):
+        """
+        Initialize BlockDecomposedLinear weights on Grassmann manifold.
+
+        Args:
+            a, b: Grassmann eigenvalues (use 1.0, 0.0 for non-skip layers)
+            rank: Projector rank (if None, uses 50% of n_embd)
+        """
+        if rank is None:
+            rank = int(0.5 * self.config.n_embd)
+
+        print(f"\n=== Initializing Grassmann Block Weights ===")
+        print(f"Manifold: G_{{{a}, {b}, {rank}}}")
+
+        count = 0
+        for name, module in self.named_modules():
+            if isinstance(module, BlockDecomposedLinear):
+                for i, block in enumerate(module.blocks):
+                    with torch.no_grad():
+                        W_init = initialize_on_grassmann(block.weight, a=a, b=b, r=rank)
+                        block.weight.copy_(W_init)
+                    count += 1
+                print(f"  Initialized {name} ({module.n_blocks} blocks) on G_{{{a},{b},{rank}}}")
+
+        print(f"Total blocks initialized: {count}\n")
 
     def forward(self, idx, targets=None):
         device = idx.device
@@ -629,6 +735,60 @@ class GPT(nn.Module):
         scales_attn_c_proj = get_scale_or_list('grass_scale_attn_c_proj', 1.0)
         scales_mlp_c_proj = get_scale_or_list('grass_scale_mlp_c_proj', 1.0)
 
+        # Track which parameters are used by BlockDecomposedLinear (to skip in parameter loop)
+        block_decomposed_params = set()
+
+        # First pass: Handle BlockDecomposedLinear modules
+        # These are used when use_grassmann=True to decompose rectangular matrices
+        import re
+        for module_name, module in self.named_modules():
+            if isinstance(module, BlockDecomposedLinear):
+                # Extract block index from module name (e.g., "transformer.h.2.attn.c_attn")
+                match = re.search(r'\.h\.(\d+)\.', module_name)
+                block_idx = int(match.group(1)) if match else 0
+
+                # Determine layer type and configuration
+                if 'attn.c_attn' in module_name:
+                    # Q, K, V blocks - non-skip-facing
+                    rank = ranks_c_attn[block_idx]
+                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    lr = 8e-3  # 8× boost
+                    layer_type = 'c_attn'
+                elif 'mlp.c_fc' in module_name:
+                    # MLP expansion blocks - non-skip-facing
+                    rank = ranks_mlp_fc[block_idx]
+                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    lr = 8e-3  # 8× boost
+                    layer_type = 'mlp.c_fc'
+                else:
+                    continue  # Skip other layers (shouldn't happen in Phase 3)
+
+                # Add each block's weight as a separate Grassmann parameter
+                for i, block in enumerate(module.blocks):
+                    param_name = f"{module_name}.blocks.{i}.weight"
+                    if hasattr(block, 'weight'):
+                        grassmann_params.append({
+                            'name': param_name,
+                            'param': block.weight,
+                            'k': 1,  # Each block is already square
+                            'r': rank,
+                            'a': a,
+                            'b': b,
+                            'lr': lr,
+                            'scale': 1.0,  # Scaling handled by frozen_scale in module
+                            'decomp_type': None,  # Already square, no decomposition
+                            'alpha': 0.01,
+                            'steps': 10,
+                            'tol': 1e-6
+                        })
+                        block_decomposed_params.add(id(block.weight))
+
+                # Also mark gate params to skip (they'll be handled as AdamW gate params)
+                if hasattr(module, 'block_gates') and module.block_gates is not None:
+                    for i, gate in enumerate(module.block_gates):
+                        if hasattr(gate, 'weight'):
+                            block_decomposed_params.add(id(gate.weight))
+
         # Parse phase variants
         base_phase = grassmann_phase
         skip_attn_c_proj = False
@@ -654,6 +814,10 @@ class GPT(nn.Module):
         print(f"  mlp.c_fc scales:    {[f'{s:.2f}' for s in scales_mlp_fc]}")
 
         for pn, p in param_dict.items():
+            # Skip parameters already handled by BlockDecomposedLinear
+            if id(p) in block_decomposed_params:
+                continue
+
             is_grassmann = False
 
             # Phase 0: Only attn.c_proj (backward compatibility)
@@ -687,7 +851,7 @@ class GPT(nn.Module):
 
             # Phase 1: c_attn (QKV) + attn.c_proj
             if base_phase in ['phase1', 'phase3', 'phase4', 'phase5']:
-                if 'attn.c_attn.weight' in pn:
+                if 'attn.c_attn.' in pn and '.weight' in pn:
                     # Extract block index from parameter name (e.g., "h.2.attn.c_attn.weight")
                     import re
                     match = re.search(r'\.h\.(\d+)\.', pn)
@@ -710,7 +874,7 @@ class GPT(nn.Module):
 
             # Phase 2: mlp.c_fc + attn.c_proj
             if base_phase in ['phase2', 'phase3', 'phase4', 'phase5']:
-                if 'mlp.c_fc.weight' in pn:
+                if 'mlp.c_fc.' in pn and '.weight' in pn:
                     # Extract block index
                     import re
                     match = re.search(r'\.h\.(\d+)\.', pn)
@@ -734,11 +898,16 @@ class GPT(nn.Module):
             # Phase 4: Add mlp.c_proj (skip-compatible)
             if grassmann_phase == 'phase4':
                 if 'mlp.c_proj.weight' in pn:
+                    # Extract block index
+                    import re
+                    match = re.search(r'\.h\.(\d+)\.', pn)
+                    block_idx = int(match.group(1)) if match else 0
+
                     grassmann_params.append({
                         'name': pn,
                         'param': p,
                         'k': 4,
-                        'r': rank,
+                        'r': ranks_mlp_c_proj[block_idx],
                         'a': 0.0, 'b': -1.0,  # Skip-compatible
                         'lr': learning_rate,  # No boost (1e-3)
                         'scale': 0.5,  # Gradient dampening
@@ -753,11 +922,16 @@ class GPT(nn.Module):
             if grassmann_phase == 'phase5':
                 # attn.c_proj now uses G_{1,0,r} instead of G_{0,-1,r}
                 if 'attn.c_proj.weight' in pn and p.dim() == 2 and p.shape[0] == p.shape[1]:
+                    # Extract block index
+                    import re
+                    match = re.search(r'\.h\.(\d+)\.', pn)
+                    block_idx = int(match.group(1)) if match else 0
+
                     grassmann_params.append({
                         'name': pn,
                         'param': p,
                         'k': 1,
-                        'r': rank,
+                        'r': ranks_attn_c_proj[block_idx],
                         'a': 1.0, 'b': 0.0,  # No-skip (changed from 0,-1)
                         'lr': 8e-3,  # 8× boost (changed from 1e-3)
                         'scale': 1.0,
@@ -770,11 +944,16 @@ class GPT(nn.Module):
 
                 # mlp.c_proj now uses G_{1,0,r} with 8× LR
                 if 'mlp.c_proj.weight' in pn:
+                    # Extract block index
+                    import re
+                    match = re.search(r'\.h\.(\d+)\.', pn)
+                    block_idx = int(match.group(1)) if match else 0
+
                     grassmann_params.append({
                         'name': pn,
                         'param': p,
                         'k': 4,
-                        'r': rank,
+                        'r': ranks_mlp_c_proj[block_idx],
                         'a': 1.0, 'b': 0.0,  # No-skip (changed from 0,-1)
                         'lr': 8e-3,  # 8× boost (changed from 1e-3)
                         'scale': 1.0,  # No dampening (changed from 0.5)
@@ -785,10 +964,15 @@ class GPT(nn.Module):
                     })
                     is_grassmann = True
 
-            # attn.c_proj for phases 1-3
-            if base_phase in ['phase1', 'phase2', 'phase3']:
+            # attn.c_proj for phases 1-2 ONLY (phase3 uses AdamW for skip-facing layers)
+            if base_phase in ['phase1', 'phase2']:
                 if 'attn.c_proj.weight' in pn and p.dim() == 2 and p.shape[0] == p.shape[1]:
                     if not skip_attn_c_proj:  # .5 variant skips attn.c_proj
+                        # Extract block index
+                        import re
+                        match = re.search(r'\.h\.(\d+)\.', pn)
+                        block_idx = int(match.group(1)) if match else 0
+
                         # .2 variant uses G(1,0,r) + 8× LR, base uses G(0,-1,r) + 1× LR
                         a_val = 1.0 if attn_c_proj_no_skip else 0.0
                         b_val = 0.0 if attn_c_proj_no_skip else -1.0
@@ -798,7 +982,7 @@ class GPT(nn.Module):
                             'name': pn,
                             'param': p,
                             'k': 1,
-                            'r': rank,
+                            'r': ranks_attn_c_proj[block_idx],
                             'a': a_val, 'b': b_val,
                             'lr': lr_val,
                             'scale': 1.0,
@@ -816,19 +1000,75 @@ class GPT(nn.Module):
                 else:
                     adamw_params_nodecay.append(p)
 
-        # Create AdamW optimizer
+        # Split AdamW params into groups with different learning rates
+        # Gates need higher LR for fast adaptation, embeddings need lower LR
+        gate_params = []
+        proj_params = []
+        embed_params = []
+        other_decay_params = []
+
+        # First, collect block_gates from BlockDecomposedLinear modules
+        for module_name, module in self.named_modules():
+            if isinstance(module, BlockDecomposedLinear):
+                if hasattr(module, 'block_gates') and module.block_gates is not None:
+                    for i, gate in enumerate(module.block_gates):
+                        if hasattr(gate, 'weight'):
+                            gate_params.append(gate.weight)
+
+        for pn, p in param_dict.items():
+            if id(p) in block_decomposed_params:
+                continue  # Skip Grassmann params and block_gates (already collected)
+
+            # Classify non-Grassmann 2D params
+            if p.dim() >= 2:
+                if 'gate' in pn and '.weight' in pn:
+                    # Gating networks (head_gates, block_gates)
+                    gate_params.append(p)
+                elif 'c_proj.weight' in pn:
+                    # Projection layers (attn.c_proj, mlp.c_proj)
+                    proj_params.append(p)
+                elif 'wte.weight' in pn or 'wpe.weight' in pn:
+                    # Embeddings (token + position)
+                    embed_params.append(p)
+                else:
+                    # Other 2D params (shouldn't be many)
+                    other_decay_params.append(p)
+
+        # Determine gate learning rate
+        # If gate_lr is provided in config, use it; otherwise use 2× base LR
+        gate_lr = getattr(self.config, 'gate_lr', None)
+        if gate_lr is None:
+            gate_lr = learning_rate * 2.0  # Default: 2× base LR
+
+        # Determine embedding learning rate
+        embed_lr = getattr(self.config, 'embed_lr', None)
+        if embed_lr is None:
+            embed_lr = learning_rate * 0.5  # Default: 0.5× base LR
+
+        # Create optimizer groups with different LRs
         optim_groups = [
-            {'params': adamw_params_decay, 'weight_decay': weight_decay},
-            {'params': adamw_params_nodecay, 'weight_decay': 0.0}
+            {'params': gate_params, 'lr': gate_lr, 'weight_decay': weight_decay},
+            {'params': proj_params, 'lr': learning_rate, 'weight_decay': weight_decay},
+            {'params': embed_params, 'lr': embed_lr, 'weight_decay': 0.0},  # No decay for embeddings
+            {'params': other_decay_params, 'lr': learning_rate, 'weight_decay': weight_decay},
+            {'params': adamw_params_nodecay, 'lr': learning_rate, 'weight_decay': 0.0}
         ]
 
         num_grassmann = sum(p['param'].numel() for p in grassmann_params)
-        num_adamw_decay = sum(p.numel() for p in adamw_params_decay)
+        num_gate = sum(p.numel() for p in gate_params)
+        num_proj = sum(p.numel() for p in proj_params)
+        num_embed = sum(p.numel() for p in embed_params)
+        num_other_decay = sum(p.numel() for p in other_decay_params)
         num_adamw_nodecay = sum(p.numel() for p in adamw_params_nodecay)
 
         print(f"Grassmann Muon parameters: {len(grassmann_params)} weight matrices, {num_grassmann:,} params")
-        print(f"AdamW decay parameters: {len(adamw_params_decay)} tensors, {num_adamw_decay:,} params")
-        print(f"AdamW no-decay parameters: {len(adamw_params_nodecay)} tensors, {num_adamw_nodecay:,} params")
+        print(f"AdamW optimizer groups:")
+        print(f"  Gates:      {len(gate_params)} tensors, {num_gate:,} params, lr={gate_lr:.2e}, wd={weight_decay}")
+        print(f"  Projections: {len(proj_params)} tensors, {num_proj:,} params, lr={learning_rate:.2e}, wd={weight_decay}")
+        print(f"  Embeddings: {len(embed_params)} tensors, {num_embed:,} params, lr={embed_lr:.2e}, wd=0.0")
+        if num_other_decay > 0:
+            print(f"  Other decay: {len(other_decay_params)} tensors, {num_other_decay:,} params, lr={learning_rate:.2e}, wd={weight_decay}")
+        print(f"  No decay:   {len(adamw_params_nodecay)} tensors, {num_adamw_nodecay:,} params, lr={learning_rate:.2e}, wd=0.0")
 
         for cfg in grassmann_params:
             print(f"  {cfg['name']}: k={cfg['k']}, G_{{{cfg['a']},{cfg['b']},{cfg['r']}}}, "

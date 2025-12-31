@@ -1,0 +1,13 @@
+/home/junyuren/nanoGPT/train.py:207: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+Traceback (most recent call last):
+  File "/home/junyuren/nanoGPT/train.py", line 308, in <module>
+    X, Y = get_batch('train') # fetch the very first batch
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/nanoGPT/train.py", line 131, in get_batch
+    data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/numpy/_core/memmap.py", line 236, in __new__
+    f_ctx = open(
+            ^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data/openwebtext/train.bin'

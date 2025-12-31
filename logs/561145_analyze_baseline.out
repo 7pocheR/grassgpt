@@ -1,0 +1,9 @@
+Loading checkpoint: /net/scratch2/junyuren/nanoGPT-manifold/out-baby-baseline/ckpt.pt
+
+✓ Analysis complete!
+  Report: baseline_weight_analysis.md
+
+=== Key Findings ===
+c_attn         : operator norm = 4.7744 → scale Grassmann by this factor
+mlp.c_fc       : operator norm = 10.6687 → scale Grassmann by this factor
+attn.c_proj    : operator norm = 1.8320 → scale Grassmann by this factor

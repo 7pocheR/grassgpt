@@ -1,0 +1,94 @@
+Overriding config with config/train_openwebtext_baseline.py:
+# Train baseline GPT on OpenWebText (AdamW only)
+# Model: 12L x 768d (~40M params)
+# Dataset: 9B tokens
+
+# I/O
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-baseline'
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+always_save_checkpoint = True
+
+wandb_log = False
+wandb_project = 'openwebtext'
+wandb_run_name = 'baseline-12L-768d'
+
+# Data
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+gradient_accumulation_steps = 40  # Simulate batch size of 480K tokens
+batch_size = 12  # What fits in H100 memory
+block_size = 1024  # OpenWebText uses 1024 context
+
+# Model - 12L x 768d (~40M params)
+n_layer = 12
+n_head = 12
+n_embd = 768
+dropout = 0.2  # Standard for baseline
+
+# AdamW optimizer
+learning_rate = 6e-4  # From GPT-3 paper for ~40M params
+max_iters = 100000  # ~100K iters for meaningful training
+lr_decay_iters = 100000
+min_lr = 6e-5  # 1/10 of max_lr
+beta2 = 0.95  # Standard for transformers
+weight_decay = 0.1  # Standard
+
+warmup_iters = 2000  # 2K iters warmup
+
+# System
+dtype = 'bfloat16'
+compile = True
+
+# No Grassmann
+use_grassmann = False
+
+tokens per iteration will be: 491,520
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+number of parameters: 123.59M
+num decayed parameter tensors: 50, with 124,354,560 parameters
+num non-decayed parameter tensors: 25, with 19,200 parameters
+using fused AdamW: True
+compiling the model... (takes a ~minute)
+step 0: train loss 10.9886, val loss 10.9897
+iter 0: loss 10.9847, time 63143.91ms, mfu -100.00%
+iter 10: loss 10.4560, time 1842.81ms, mfu 73.07%
+iter 20: loss 9.8593, time 1839.31ms, mfu 73.09%
+iter 30: loss 9.6008, time 1857.03ms, mfu 73.03%
+iter 40: loss 9.3105, time 1868.40ms, mfu 72.93%
+iter 50: loss 9.2738, time 1856.76ms, mfu 72.89%
+iter 60: loss 8.9078, time 1848.49ms, mfu 72.89%
+iter 70: loss 8.7072, time 1845.34ms, mfu 72.90%
+iter 80: loss 8.5845, time 1836.82ms, mfu 72.94%
+iter 90: loss 8.1336, time 1836.54ms, mfu 72.98%
+iter 100: loss 8.0886, time 1836.20ms, mfu 73.01%
+iter 110: loss 7.7819, time 1833.46ms, mfu 73.06%
+iter 120: loss 7.6210, time 1830.10ms, mfu 73.11%
+iter 130: loss 7.4803, time 1833.41ms, mfu 73.14%
+iter 140: loss 7.5007, time 1831.15ms, mfu 73.18%
+iter 150: loss 7.3995, time 1831.90ms, mfu 73.21%
+iter 160: loss 6.9550, time 1832.36ms, mfu 73.24%
+iter 170: loss 6.8330, time 1832.58ms, mfu 73.27%
+iter 180: loss 6.9361, time 1833.44ms, mfu 73.28%
+iter 190: loss 6.7129, time 1832.72ms, mfu 73.30%
+iter 200: loss 6.7900, time 1833.35ms, mfu 73.32%
+iter 210: loss 6.6403, time 1831.99ms, mfu 73.34%
+iter 220: loss 6.7000, time 1834.00ms, mfu 73.34%
+iter 230: loss 6.4697, time 1833.13ms, mfu 73.36%
+iter 240: loss 6.3952, time 1835.25ms, mfu 73.36%
+iter 250: loss 6.5633, time 1839.19ms, mfu 73.34%
+iter 260: loss 6.3029, time 1834.98ms, mfu 73.35%
+iter 270: loss 6.5412, time 1833.95ms, mfu 73.36%
+iter 280: loss 6.2831, time 1836.18ms, mfu 73.35%
+iter 290: loss 6.3048, time 1837.17ms, mfu 73.35%
+iter 300: loss 6.2843, time 1837.31ms, mfu 73.34%
+iter 310: loss 6.3464, time 1836.80ms, mfu 73.34%
+iter 320: loss 6.0699, time 1836.42ms, mfu 73.34%
+iter 330: loss 6.0139, time 1836.32ms, mfu 73.34%
+iter 340: loss 6.2571, time 1835.53ms, mfu 73.34%
+iter 350: loss 5.9931, time 1839.26ms, mfu 73.33%
+iter 360: loss 5.9883, time 1836.38ms, mfu 73.33%
+iter 370: loss 6.1552, time 1835.99ms, mfu 73.33%
+iter 380: loss 5.9277, time 1836.83ms, mfu 73.33%

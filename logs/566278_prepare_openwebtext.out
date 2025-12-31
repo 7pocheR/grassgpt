@@ -1,0 +1,35 @@
+Attempting to load OpenWebText dataset...
+
+Trying: Parquet branch (convert-parquet-full)...
+✗ Failed: Revision 'convert-parquet-full' doesn't exist for dataset 'Skylion007/openwebtext' on the Hub.
+
+Trying: Alternative mirror (vietgpt/openwebtext_en)...
+✓ Success with alternative mirror!
+
+Dataset loaded: DatasetDict({
+    train: Dataset({
+        features: ['text'],
+        num_rows: 8013769
+    })
+})
+Split dataset: DatasetDict({
+    train: Dataset({
+        features: ['text'],
+        num_rows: 8009762
+    })
+    val: Dataset({
+        features: ['text'],
+        num_rows: 4007
+    })
+})
+
+Tokenizing...
+
+Writing train.bin (9035582489 tokens, ~18.1GB)...
+✓ Saved /net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext/train.bin
+
+Writing val.bin (4434606 tokens, ~0.0GB)...
+✓ Saved /net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext/val.bin
+
+✓ Dataset preparation complete!
+Files saved to: /net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext

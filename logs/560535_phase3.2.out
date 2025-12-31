@@ -1,0 +1,253 @@
+Overriding config with config/phase3.2_qkv_mlp_noskip.py:
+# Phase 3.2: c_attn + mlp.c_fc + attn.c_proj (derived from phase3, attn.c_proj uses G(1,0,r) + no skip)
+# Coverage: ~62% of parameters
+# Test if combined benefits persist with G(1,0,r) for attn.c_proj
+
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-phase3.2-qkv-mlp-noskip'
+eval_interval = 500
+eval_iters = 200
+log_interval = 10
+always_save_checkpoint = True
+
+wandb_log = False
+wandb_project = 'nanogpt-manifold'
+wandb_run_name = 'phase3.2-qkv-mlp-noskip'
+
+# Dataset
+dataset = 'shakespeare_char'
+gradient_accumulation_steps = 1
+batch_size = 64
+block_size = 256
+
+# Baby GPT architecture
+n_layer = 6
+n_head = 6
+n_embd = 384
+dropout = 0.2  # Match baseline (nanoGPT standard for Shakespeare)
+bias = False
+
+# AdamW for non-Grassmann params
+learning_rate = 1e-3
+max_iters = 15000
+lr_decay_iters = 15000
+min_lr = 1e-4
+weight_decay = 1e-1  # Match baseline
+beta1 = 0.9
+beta2 = 0.99  # Match baseline (standard for small token count)
+grad_clip = 1.0
+
+decay_lr = True
+warmup_iters = 100
+
+# Grassmann config
+use_grassmann = True
+grassmann_phase = 'phase3.2'  # .2 = attn.c_proj uses G(1,0,r) + remove skip
+
+# Legacy params
+grass_lr = 8e-3
+grass_a = 1.0
+grass_b = 0.0
+grass_rank = 192
+grass_alpha = 0.01
+grass_steps = 10
+grass_tol = 1e-6
+
+# System
+device = 'cuda'
+dtype = 'bfloat16'
+compile = True
+
+tokens per iteration will be: 16,384
+found vocab_size = 65 (inside data/shakespeare_char/meta.pkl)
+Initializing a new model from scratch
+number of parameters: 10.65M
+
+=== Phase phase3.2 Grassmann Configuration ===
+  Variant .2: attn.c_proj uses G(1,0,r) with attn skip removed
+Grassmann Muon parameters: 18 weight matrices, 7,077,888 params
+AdamW decay parameters: 8 tensors, 3,662,208 params
+AdamW no-decay parameters: 13 tensors, 4,992 params
+  transformer.h.0.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.0.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_attn.weight: k=3, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_proj.weight: k=1, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.weight: k=4, G_{1.0,0.0,192}, lr=0.008, scale=1.0, type=vertical
+using fused AdamW: True
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 18
+
+Initializing attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.0.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.1.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.2.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.3.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.4.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.5.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.0.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.1.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.2.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.3.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.4.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.5.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.0.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.1.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.2.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.3.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.4.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+  Initialized transformer.h.5.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.1.attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.1.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.1.attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.1.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.1.mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.2.attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.2.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.2.attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.2.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.2.mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.2.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.3.attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.3.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.3.attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.3.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.3.mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.4.attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.4.attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.4.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.4.mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.4.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.5.attn.c_attn.: k=3, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.5.attn.c_attn.weight (1152, 384) as 3 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.5.attn.c_proj.: k=1, G_{1.0,0.0,192}, type=None
+  Initialized transformer.h.5.attn.c_proj.weight (384, 384) on G_{1.0,0.0,192}
+
+Initializing transformer.h.5.mlp.c_fc.: k=4, G_{1.0,0.0,192}, type=vertical
+  Initialized transformer.h.5.mlp.c_fc.weight (1536, 384) as 4 blocks of (384, 384) on G_{1.0,0.0,192}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.2
+Grassmann components: dropout = 0.1
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3.2) ===
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+Norm-preserving scaling setup complete.
+
+=== Removing attention skip connections (phase phase3.2) ===
+  Removed skip connections from 6 blocks
+compiling the model... (takes a ~minute)
+step 0: train loss 4.3305, val loss 4.3282
+iter 0: loss 4.3217, time 12634.22ms, mfu -100.00%
+iter 10: loss 3.5993, time 1021.63ms, mfu 0.80%
+iter 20: loss 3.3619, time 1039.39ms, mfu 0.80%
+iter 30: loss 3.2883, time 1015.10ms, mfu 0.80%
+iter 40: loss 3.3133, time 1013.90ms, mfu 0.80%
+iter 50: loss 3.3294, time 1024.50ms, mfu 0.80%
+iter 60: loss 3.3227, time 1029.79ms, mfu 0.80%
+iter 70: loss 3.2971, time 1027.63ms, mfu 0.80%
+iter 80: loss 3.3052, time 1029.73ms, mfu 0.80%
+iter 90: loss 3.3092, time 1025.24ms, mfu 0.80%
+iter 100: loss 3.3524, time 1026.72ms, mfu 0.80%
+iter 110: loss 3.3059, time 1021.11ms, mfu 0.80%
+iter 120: loss 3.2943, time 1026.66ms, mfu 0.80%
+iter 130: loss 3.3339, time 1019.68ms, mfu 0.80%
+iter 140: loss 3.3140, time 1021.32ms, mfu 0.80%
+iter 150: loss 3.3012, time 1017.54ms, mfu 0.80%
+iter 160: loss 3.3041, time 1015.75ms, mfu 0.80%
+iter 170: loss 3.3560, time 1011.90ms, mfu 0.80%
+iter 180: loss 3.3107, time 1015.71ms, mfu 0.80%
+iter 190: loss 3.2527, time 1005.87ms, mfu 0.80%
+iter 200: loss 3.2160, time 1014.02ms, mfu 0.80%
+iter 210: loss 3.1952, time 1006.63ms, mfu 0.80%
+iter 220: loss 3.2507, time 1005.09ms, mfu 0.81%
+iter 230: loss 3.2192, time 1013.06ms, mfu 0.81%
+iter 240: loss 3.2197, time 1011.28ms, mfu 0.81%
+iter 250: loss 3.2182, time 996.11ms, mfu 0.81%
+iter 260: loss 3.2033, time 1003.87ms, mfu 0.81%
+iter 270: loss 3.1842, time 999.20ms, mfu 0.81%
+iter 280: loss 3.1984, time 1002.68ms, mfu 0.81%
+iter 290: loss 3.1877, time 1020.11ms, mfu 0.81%
+iter 300: loss 3.2162, time 996.33ms, mfu 0.81%
+iter 310: loss 3.1946, time 1011.89ms, mfu 0.81%
+iter 320: loss 3.1970, time 1029.59ms, mfu 0.81%
+iter 330: loss 3.2140, time 1005.22ms, mfu 0.81%
+iter 340: loss 3.1829, time 995.93ms, mfu 0.81%
+iter 350: loss 3.1904, time 997.90ms, mfu 0.81%
+iter 360: loss 3.2295, time 987.83ms, mfu 0.81%
+iter 370: loss 3.1732, time 983.06ms, mfu 0.82%
+iter 380: loss 3.1901, time 992.81ms, mfu 0.82%
+iter 390: loss 3.1592, time 987.10ms, mfu 0.82%
+iter 400: loss 3.1521, time 981.03ms, mfu 0.82%
+iter 410: loss 3.1529, time 981.26ms, mfu 0.82%
+iter 420: loss 3.1609, time 984.71ms, mfu 0.82%
+iter 430: loss 3.1838, time 972.95ms, mfu 0.82%
+iter 440: loss 3.1576, time 968.88ms, mfu 0.83%
+iter 450: loss 3.1592, time 973.47ms, mfu 0.83%
+iter 460: loss 3.1469, time 1011.48ms, mfu 0.83%
+iter 470: loss 3.1840, time 970.18ms, mfu 0.83%
+iter 480: loss 3.1247, time 962.90ms, mfu 0.83%
+iter 490: loss 3.1021, time 980.90ms, mfu 0.83%
+step 500: train loss 3.0899, val loss 3.0923
+saving checkpoint to /net/scratch2/junyuren/nanoGPT-manifold/out-phase3.2-qkv-mlp-noskip
+iter 500: loss 3.1036, time 4989.13ms, mfu 0.76%
+iter 510: loss 3.1015, time 978.01ms, mfu 0.77%
+iter 520: loss 3.0797, time 975.39ms, mfu 0.78%
+iter 530: loss 3.0726, time 969.47ms, mfu 0.78%
+iter 540: loss 3.0713, time 970.78ms, mfu 0.79%
+iter 550: loss 3.0511, time 983.58ms, mfu 0.79%
+iter 560: loss 3.0608, time 969.48ms, mfu 0.80%
+iter 570: loss 3.0673, time 960.13ms, mfu 0.80%
+iter 580: loss 3.0299, time 972.26ms, mfu 0.81%
+iter 590: loss 3.0565, time 968.33ms, mfu 0.81%
+iter 600: loss 3.0287, time 973.88ms, mfu 0.82%
+iter 610: loss 3.0206, time 977.73ms, mfu 0.82%
+iter 620: loss 3.0203, time 973.60ms, mfu 0.82%
+iter 630: loss 3.0215, time 976.16ms, mfu 0.82%
+iter 640: loss 3.0062, time 980.03ms, mfu 0.82%
+iter 650: loss 3.0028, time 977.25ms, mfu 0.82%
+iter 660: loss 2.9958, time 990.93ms, mfu 0.82%
+iter 670: loss 3.0105, time 975.55ms, mfu 0.83%
+iter 680: loss 3.0055, time 970.99ms, mfu 0.83%
+iter 690: loss 3.0168, time 972.00ms, mfu 0.83%

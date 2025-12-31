@@ -1,0 +1,53 @@
+Overriding config with config/train_openwebtext_baseline.py:
+# Train baseline GPT on OpenWebText (AdamW only)
+# Model: 12L x 768d (~40M params)
+# Dataset: 9B tokens
+
+# I/O
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-baseline'
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+always_save_checkpoint = True
+
+wandb_log = False
+wandb_project = 'openwebtext'
+wandb_run_name = 'baseline-12L-768d'
+
+# Data
+dataset = 'openwebtext'
+gradient_accumulation_steps = 40  # Simulate batch size of 480K tokens
+batch_size = 12  # What fits in H100 memory
+block_size = 1024  # OpenWebText uses 1024 context
+
+# Model - 12L x 768d (~40M params)
+n_layer = 12
+n_head = 12
+n_embd = 768
+dropout = 0.2  # Standard for baseline
+
+# AdamW optimizer
+learning_rate = 6e-4  # From GPT-3 paper for ~40M params
+max_iters = 100000  # ~100K iters for meaningful training
+lr_decay_iters = 100000
+min_lr = 6e-5  # 1/10 of max_lr
+beta2 = 0.95  # Standard for transformers
+weight_decay = 0.1  # Standard
+
+warmup_iters = 2000  # 2K iters warmup
+
+# System
+dtype = 'bfloat16'
+compile = True
+
+# No Grassmann
+use_grassmann = False
+
+tokens per iteration will be: 491,520
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+number of parameters: 123.59M
+num decayed parameter tensors: 50, with 124,354,560 parameters
+num non-decayed parameter tensors: 25, with 19,200 parameters
+using fused AdamW: True
+compiling the model... (takes a ~minute)

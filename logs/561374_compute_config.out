@@ -1,0 +1,161 @@
+Loading 10 checkpoints...
+
+====================================================================================================
+PER-LAYER GRASSMANN CONFIGURATION
+====================================================================================================
+
+To match both operator norm AND stable rank from baseline:
+
+Layer                                              Shape           Op Norm              Stable Rank          Grassmann Rank  Scale Factor   
+------------------------------------------------------------------------------------------------------------------------------------------------------
+_orig_mod.transformer.h.0.attn.c_attn.weight       1152×384        4.8777 ± 0.1868      27.79 ± 0.90         28              4.8777
+_orig_mod.transformer.h.0.attn.c_proj.weight       384×384         0.7733 ± 0.0203      50.20 ± 1.09         50              0.7733
+_orig_mod.transformer.h.0.mlp.c_fc.weight          1536×384        8.7494 ± 0.2539      10.55 ± 0.24         11              8.7494
+_orig_mod.transformer.h.0.mlp.c_proj.weight        384×1536        2.7757 ± 0.0590      54.42 ± 1.13         54              2.7757
+_orig_mod.transformer.h.1.attn.c_attn.weight       1152×384        3.3336 ± 0.0998      24.13 ± 0.83         24              3.3336
+_orig_mod.transformer.h.1.attn.c_proj.weight       384×384         2.1078 ± 0.0390      13.32 ± 0.47         13              2.1078
+_orig_mod.transformer.h.1.mlp.c_fc.weight          1536×384        10.5926 ± 0.2309     7.73 ± 0.06          8               10.5926
+_orig_mod.transformer.h.1.mlp.c_proj.weight        384×1536        3.5434 ± 0.1214      34.43 ± 0.67         34              3.5434
+_orig_mod.transformer.h.2.attn.c_attn.weight       1152×384        5.8826 ± 0.0427      13.60 ± 0.47         14              5.8826
+_orig_mod.transformer.h.2.attn.c_proj.weight       384×384         1.7225 ± 0.0425      33.35 ± 0.91         33              1.7225
+_orig_mod.transformer.h.2.mlp.c_fc.weight          1536×384        10.7750 ± 0.2096     8.72 ± 0.06          9               10.7750
+_orig_mod.transformer.h.2.mlp.c_proj.weight        384×1536        3.8672 ± 0.1215      41.81 ± 0.86         42              3.8672
+_orig_mod.transformer.h.3.attn.c_attn.weight       1152×384        5.2249 ± 0.0462      19.86 ± 0.45         20              5.2249
+_orig_mod.transformer.h.3.attn.c_proj.weight       384×384         1.8070 ± 0.0321      37.43 ± 1.01         37              1.8070
+_orig_mod.transformer.h.3.mlp.c_fc.weight          1536×384        10.7579 ± 0.1940     9.60 ± 0.04          10              10.7579
+_orig_mod.transformer.h.3.mlp.c_proj.weight        384×1536        4.4099 ± 0.1059      39.57 ± 1.50         40              4.4099
+_orig_mod.transformer.h.4.attn.c_attn.weight       1152×384        4.7100 ± 0.0535      24.85 ± 0.68         25              4.7100
+_orig_mod.transformer.h.4.attn.c_proj.weight       384×384         1.8425 ± 0.0530      37.09 ± 1.06         37              1.8425
+_orig_mod.transformer.h.4.mlp.c_fc.weight          1536×384        10.3549 ± 0.1810     10.59 ± 0.07         11              10.3549
+_orig_mod.transformer.h.4.mlp.c_proj.weight        384×1536        5.6531 ± 0.1751      25.81 ± 0.64         26              5.6531
+_orig_mod.transformer.h.5.attn.c_attn.weight       1152×384        3.7471 ± 0.0559      34.84 ± 1.10         35              3.7471
+_orig_mod.transformer.h.5.attn.c_proj.weight       384×384         2.2033 ± 0.0667      22.11 ± 1.03         22              2.2033
+_orig_mod.transformer.h.5.mlp.c_fc.weight          1536×384        9.5935 ± 0.1838      12.04 ± 0.05         12              9.5935
+_orig_mod.transformer.h.5.mlp.c_proj.weight        384×1536        6.5697 ± 0.3006      18.53 ± 0.26         19              6.5697
+
+====================================================================================================
+SUMMARY BY LAYER CATEGORY
+====================================================================================================
+
+### c_attn
+  Ranks across blocks: [28, 24, 14, 20, 25, 35]
+  Rank range: [14, 35]
+  Rank CV: 26.70%
+  
+  Scales across blocks: ['4.8777', '3.3336', '5.8826', '5.2249', '4.7100', '3.7471']
+  Scale mean: 4.6293 ± 0.8613
+  Scale CV: 18.60%
+
+### attn.c_proj
+  Ranks across blocks: [50, 13, 33, 37, 37, 22]
+  Rank range: [13, 50]
+  Rank CV: 36.89%
+  
+  Scales across blocks: ['0.7733', '2.1078', '1.7225', '1.8070', '1.8425', '2.2033']
+  Scale mean: 1.7427 ± 0.4654
+  Scale CV: 26.71%
+
+### mlp.c_fc
+  Ranks across blocks: [11, 8, 9, 10, 11, 12]
+  Rank range: [8, 12]
+  Rank CV: 13.22%
+  
+  Scales across blocks: ['8.7494', '10.5926', '10.7750', '10.7579', '10.3549', '9.5935']
+  Scale mean: 10.1372 ± 0.7381
+  Scale CV: 7.28%
+
+### mlp.c_proj
+  Ranks across blocks: [54, 34, 42, 40, 26, 19]
+  Rank range: [19, 54]
+  Rank CV: 31.59%
+  
+  Scales across blocks: ['2.7757', '3.5434', '3.8672', '4.4099', '5.6531', '6.5697']
+  Scale mean: 4.4698 ± 1.2848
+  Scale CV: 28.74%
+
+====================================================================================================
+IMPLEMENTATION RECOMMENDATIONS
+====================================================================================================
+
+## Option 1: Per-Block Configuration (Exact Match)
+```python
+# In model.py - setup per-block rank and scaling
+def setup_grassmann_exact_match(self):
+
+    # c_attn
+    self.transformer.h[0].c_attn_rank = 28
+    self.transformer.h[0].c_attn_scale = 4.8777
+    self.transformer.h[1].c_attn_rank = 24
+    self.transformer.h[1].c_attn_scale = 3.3336
+    self.transformer.h[2].c_attn_rank = 14
+    self.transformer.h[2].c_attn_scale = 5.8826
+    self.transformer.h[3].c_attn_rank = 20
+    self.transformer.h[3].c_attn_scale = 5.2249
+    self.transformer.h[4].c_attn_rank = 25
+    self.transformer.h[4].c_attn_scale = 4.7100
+    self.transformer.h[5].c_attn_rank = 35
+    self.transformer.h[5].c_attn_scale = 3.7471
+
+    # attn.c_proj
+    self.transformer.h[0].attn_c_proj_rank = 50
+    self.transformer.h[0].attn_c_proj_scale = 0.7733
+    self.transformer.h[1].attn_c_proj_rank = 13
+    self.transformer.h[1].attn_c_proj_scale = 2.1078
+    self.transformer.h[2].attn_c_proj_rank = 33
+    self.transformer.h[2].attn_c_proj_scale = 1.7225
+    self.transformer.h[3].attn_c_proj_rank = 37
+    self.transformer.h[3].attn_c_proj_scale = 1.8070
+    self.transformer.h[4].attn_c_proj_rank = 37
+    self.transformer.h[4].attn_c_proj_scale = 1.8425
+    self.transformer.h[5].attn_c_proj_rank = 22
+    self.transformer.h[5].attn_c_proj_scale = 2.2033
+
+    # mlp.c_fc
+    self.transformer.h[0].mlp_c_fc_rank = 11
+    self.transformer.h[0].mlp_c_fc_scale = 8.7494
+    self.transformer.h[1].mlp_c_fc_rank = 8
+    self.transformer.h[1].mlp_c_fc_scale = 10.5926
+    self.transformer.h[2].mlp_c_fc_rank = 9
+    self.transformer.h[2].mlp_c_fc_scale = 10.7750
+    self.transformer.h[3].mlp_c_fc_rank = 10
+    self.transformer.h[3].mlp_c_fc_scale = 10.7579
+    self.transformer.h[4].mlp_c_fc_rank = 11
+    self.transformer.h[4].mlp_c_fc_scale = 10.3549
+    self.transformer.h[5].mlp_c_fc_rank = 12
+    self.transformer.h[5].mlp_c_fc_scale = 9.5935
+
+    # mlp.c_proj
+    self.transformer.h[0].mlp_c_proj_rank = 54
+    self.transformer.h[0].mlp_c_proj_scale = 2.7757
+    self.transformer.h[1].mlp_c_proj_rank = 34
+    self.transformer.h[1].mlp_c_proj_scale = 3.5434
+    self.transformer.h[2].mlp_c_proj_rank = 42
+    self.transformer.h[2].mlp_c_proj_scale = 3.8672
+    self.transformer.h[3].mlp_c_proj_rank = 40
+    self.transformer.h[3].mlp_c_proj_scale = 4.4099
+    self.transformer.h[4].mlp_c_proj_rank = 26
+    self.transformer.h[4].mlp_c_proj_scale = 5.6531
+    self.transformer.h[5].mlp_c_proj_rank = 19
+    self.transformer.h[5].mlp_c_proj_scale = 6.5697
+```
+
+## Option 2: Category-Average (Simpler, May Be Good Enough)
+```python
+# Use average rank and scale per category
+c_attn_rank = 24  # Stable rank target
+c_attn_scale = 4.6293  # Operator norm target
+attn.c_proj_rank = 32  # Stable rank target
+attn.c_proj_scale = 1.7427  # Operator norm target
+mlp.c_fc_rank = 10  # Stable rank target
+mlp.c_fc_scale = 10.1372  # Operator norm target
+mlp.c_proj_rank = 36  # Stable rank target
+mlp.c_proj_scale = 4.4698  # Operator norm target
+```
+
+## Variance Analysis
+
+Which categories need per-block vs can use average?
+c_attn          - Rank CV:  26.70%  Scale CV:  18.60%  → ⚠ Consider per-block configuration
+attn.c_proj     - Rank CV:  36.89%  Scale CV:  26.71%  → ⚠ Consider per-block configuration
+mlp.c_fc        - Rank CV:  13.22%  Scale CV:   7.28%  → ✓ Can use category average
+mlp.c_proj      - Rank CV:  31.59%  Scale CV:  28.74%  → ⚠ Consider per-block configuration

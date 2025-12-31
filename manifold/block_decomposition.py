@@ -3,9 +3,14 @@ Block decomposition for applying Grassmann Muon to rectangular weight matrices.
 
 Decomposes (kN, N) and (N, kN) matrices into k square (N, N) blocks,
 each constrained to Grassmann manifold G_{a,b,r}.
+
+Two approaches:
+1. Functional API: decompose/compose functions for in-place weight updates
+2. Module API: BlockDecomposedLinear nn.Module for cleaner integration
 """
 
 import torch
+import torch.nn as nn
 import math
 
 
@@ -137,6 +142,118 @@ def apply_grassmann_blocks(W, G, eta, a, b, r, k, decomp_type, scale,
         return compose_weight_vertical(blocks_W_new, 1.0)
     else:  # horizontal
         return compose_weight_horizontal(blocks_W_new, 1.0)
+
+
+class BlockDecomposedLinear(nn.Module):
+    """
+    Linear layer decomposed into multiple square blocks for Grassmann optimization.
+
+    Replaces nn.Linear for rectangular (kN, N) weight matrices by decomposing
+    into k independent (N, N) blocks, each constrained to Grassmann manifold.
+
+    Forward: y = [W_1@x; W_2@x; ...; W_k@x]  (vertical stacking)
+
+    Used for:
+    - c_attn: (3n, n) → 3 blocks (Q, K, V)
+    - mlp.c_fc: (4n, n) → 4 blocks with frozen 0.5× scaling
+    """
+
+    def __init__(self, in_features, out_features, n_blocks,
+                 frozen_scale=None, use_block_gating=False, bias=False):
+        """
+        Args:
+            in_features (int): Input dimension N
+            out_features (int): Output dimension kN (must equal n_blocks × in_features)
+            n_blocks (int): Number of blocks k
+            frozen_scale (float, optional): Frozen scalar multiplier applied to output
+                                           Use 0.5 for mlp.c_fc
+            use_block_gating (bool): Whether to add per-block gating (for c_fc)
+            bias (bool): Whether to include bias (should be False for Grassmann)
+        """
+        super().__init__()
+
+        # Validate dimensions
+        assert out_features == n_blocks * in_features, \
+            f"Output features ({out_features}) must equal n_blocks ({n_blocks}) × in_features ({in_features})"
+
+        assert not bias, "Block decomposition for Grassmann should not use bias"
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.n_blocks = n_blocks
+
+        # Create k independent (N, N) blocks
+        self.blocks = nn.ModuleList([
+            nn.Linear(in_features, in_features, bias=False)
+            for _ in range(n_blocks)
+        ])
+
+        # Block-level gating (for c_fc)
+        # Each gate: Linear(in_features → 1) projects input to scalar per block
+        if use_block_gating:
+            self.block_gates = nn.ModuleList([
+                nn.Linear(in_features, 1, bias=False)
+                for _ in range(n_blocks)
+            ])
+        else:
+            self.block_gates = None
+
+        # Frozen scaling (non-trainable)
+        # For mlp.c_fc: 0.5× to normalize √4 → 1
+        if frozen_scale is not None:
+            self.register_buffer('frozen_scale',
+                               torch.tensor(frozen_scale, dtype=torch.float32))
+        else:
+            self.frozen_scale = None
+
+    def forward(self, x):
+        """
+        Forward pass through block-decomposed layer.
+
+        Args:
+            x: (B, T, in_features)
+
+        Returns:
+            y: (B, T, out_features) = (B, T, n_blocks × in_features)
+        """
+        # Apply each block independently with optional gating
+        block_outputs = []
+        for i, block in enumerate(self.blocks):
+            out = block(x)  # (B, T, in_features), Grassmann projection ||W||_op=1
+
+            # Apply block-level gate if enabled
+            if self.block_gates is not None:
+                gate = torch.sigmoid(self.block_gates[i](x))  # (B, T, 1)
+                out = out * gate  # Input-dependent scaling
+
+            block_outputs.append(out)
+
+        # Concatenate along feature dimension
+        y = torch.cat(block_outputs, dim=-1)  # (B, T, k × in_features)
+
+        # Apply frozen scaling if configured
+        if self.frozen_scale is not None:
+            y = y * self.frozen_scale
+
+        return y
+
+    def get_grassmann_params(self):
+        """
+        Get list of block weight parameters for Grassmann optimizer.
+
+        Returns:
+            List[torch.Tensor]: Weight tensors, each (in_features, in_features)
+        """
+        return [block.weight for block in self.blocks]
+
+    def extra_repr(self):
+        """String representation for debugging."""
+        s = f'{self.in_features}, {self.out_features}, n_blocks={self.n_blocks}'
+        if self.frozen_scale is not None:
+            s += f', frozen_scale={self.frozen_scale.item():.2f}'
+        if self.block_gates is not None:
+            s += f', block_gating=True'
+        return s
 
 
 def test_block_decomposition():

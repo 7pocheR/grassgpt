@@ -66,13 +66,17 @@ grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
 # grassmann muon optimizer (for manifold optimization)
 use_grassmann = False # enable Grassmann Muon for square attention weights
 grass_lr = 5e-4 # Grassmann learning rate (8× lower than no-skip for skip connections)
+grass_scale = 10.0 # Uniform scaling factor for Grassmann layers (compensates for ||W||=1)
 grass_a = 0.0 # First eigenvalue (0.0 for skip connections, 1.0 for no-skip)
 grass_b = -1.0 # Second eigenvalue (-1.0 for skip connections, 0.0 for no-skip)
 grass_rank = None # Projector rank (None = auto 62.5% of n_embd, e.g., 240 for n_embd=384)
 grass_alpha = 0.01 # Dual ascent step size
 grass_steps = 10 # Max dual iterations per update
 grass_tol = 1e-6 # Convergence tolerance
+grassmann_dropout = None # Dropout for Grassmann components (None = auto dropout/2)
 grassmann_phase = 'phase0' # Experimental phase: 'phase0', 'phase1', 'phase2', 'phase3', 'phase4', or 'phase5'
+gate_lr = None # Learning rate for gating networks (None = 2× learning_rate, gates need faster adaptation)
+embed_lr = None # Learning rate for embeddings (None = 0.5× learning_rate, embeddings need conservative updates)
 # learning rate decay settings
 decay_lr = True # whether to decay the learning rate
 warmup_iters = 2000 # how many steps to warm up for
@@ -157,7 +161,10 @@ if os.path.exists(meta_path):
 
 # model init
 model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
-                  bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
+                  bias=bias, vocab_size=None, dropout=dropout,
+                  use_grassmann=use_grassmann, grass_rank=grass_rank, grass_scale=grass_scale,
+                  grass_a=grass_a, grass_b=grass_b, grass_lr=grass_lr,
+                  grassmann_dropout=grassmann_dropout, gate_lr=gate_lr, embed_lr=embed_lr) # start with model_args from command line
 if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new model from scratch")

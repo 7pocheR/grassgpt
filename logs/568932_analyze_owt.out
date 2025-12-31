@@ -1,0 +1,28 @@
+Loading checkpoint from /net/scratch2/junyuren/nanoGPT-manifold/out-openwebtext-baseline/ckpt.pt
+
+Checkpoint info:
+  Iteration: 13000
+  Best val loss: 3.7777
+
+============================================================
+Operator Norm and Stable Rank Analysis
+============================================================
+
+
+
+
+
+
+
+============================================================
+Summary Statistics
+============================================================
+
+============================================================
+Comparison with Shakespeare Baseline
+============================================================
+
+============================================================
+Recommended Config Values for OpenWebText
+============================================================
+

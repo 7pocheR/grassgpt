@@ -1,0 +1,26 @@
+Attempting to load OpenWebText dataset...
+
+Trying: Parquet branch (convert-parquet-full)...
+✗ Failed: Revision 'convert-parquet-full' doesn't exist for dataset 'Skylion007/openwebtext' on the Hub.
+
+Trying: Alternative mirror (vietgpt/openwebtext_en)...
+✓ Success with alternative mirror!
+
+Dataset loaded: DatasetDict({
+    train: Dataset({
+        features: ['text'],
+        num_rows: 8013769
+    })
+})
+Split dataset: DatasetDict({
+    train: Dataset({
+        features: ['text'],
+        num_rows: 8009762
+    })
+    val: Dataset({
+        features: ['text'],
+        num_rows: 4007
+    })
+})
+
+Tokenizing...

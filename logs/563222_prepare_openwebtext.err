@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/home/junyuren/nanoGPT/data/openwebtext/prepare.py", line 23, in <module>
+    dataset = load_dataset("openwebtext", num_proc=num_proc_load_dataset)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/datasets/load.py", line 1397, in load_dataset
+    builder_instance = load_dataset_builder(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/datasets/load.py", line 1137, in load_dataset_builder
+    dataset_module = dataset_module_factory(
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/datasets/load.py", line 1036, in dataset_module_factory
+    raise e1 from None
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/datasets/load.py", line 994, in dataset_module_factory
+    raise RuntimeError(f"Dataset scripts are no longer supported, but found {filename}")
+RuntimeError: Dataset scripts are no longer supported, but found openwebtext.py

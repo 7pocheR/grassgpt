@@ -1,0 +1,1613 @@
+=== Job Info ===
+Job ID: 603358
+Node: m001
+GPUs: 
+Start time: Sat Dec 27 12:23:31 AM CST 2025
+
+=== Configuration ===
+Architecture: GPT-2 Medium (d=1024, 24 layers, 16 heads)
+Grassmann: c_attn + mlp.c_fc (non-skip-facing, 58% coverage)
+Grassmann LR: 2e-3 (reduced from 8e-3)
+Scaling: x=10 uniform
+Gating: Head-wise (G1 position)
+Batch size: 64 per GPU × 12 grad_accum × 4 GPUs = 3072 (3.1M tokens)
+
+=== Starting Training ===
+Overriding config with config/train_gpt2_medium_grassmann_gated_lr2e3.py:
+# Phase 3: Grassmann + Gating at d=1024
+# Reduced LR: 2e-3 (vs 8e-3 which was too aggressive)
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1
+bias = False  # Grassmann requires no bias
+
+# Enable both Grassmann and Gating
+use_grassmann = True
+use_gating = True
+
+# Grassmann configuration
+# Non-skip-facing layers (c_attn, mlp.c_fc): G_{1.0, 0.0, r}
+grass_rank = 512  # 50% of n_embd (keep same as 8e-3 run)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 2e-3  # Reduced from 8e-3 (4× lower, ~3.3× AdamW base)
+
+# Gating configuration
+gate_type = 'headwise'  # 16K params/layer (efficient)
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 100000  # Initial test (can extend to 600k later)
+warmup_iters = 2000  # Standard warmup
+lr_decay_iters = 100000  # Cosine decay to min_lr
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Effective batch = 64 × 12 × 4 GPUs = 3072 sequences × 1024 seq_len = 3,145,728 tokens
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 64  # Per GPU
+gradient_accumulation_steps = 12  # Total 768 sequences per GPU, 786K tokens
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-gate-lr2e3'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding config with config/train_gpt2_medium_grassmann_gated_lr2e3.py:
+# Phase 3: Grassmann + Gating at d=1024
+# Reduced LR: 2e-3 (vs 8e-3 which was too aggressive)
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1
+bias = False  # Grassmann requires no bias
+
+# Enable both Grassmann and Gating
+use_grassmann = True
+use_gating = True
+
+# Grassmann configuration
+# Non-skip-facing layers (c_attn, mlp.c_fc): G_{1.0, 0.0, r}
+grass_rank = 512  # 50% of n_embd (keep same as 8e-3 run)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 2e-3  # Reduced from 8e-3 (4× lower, ~3.3× AdamW base)
+
+# Gating configuration
+gate_type = 'headwise'  # 16K params/layer (efficient)
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 100000  # Initial test (can extend to 600k later)
+warmup_iters = 2000  # Standard warmup
+lr_decay_iters = 100000  # Cosine decay to min_lr
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Effective batch = 64 × 12 × 4 GPUs = 3072 sequences × 1024 seq_len = 3,145,728 tokens
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 64  # Per GPU
+gradient_accumulation_steps = 12  # Total 768 sequences per GPU, 786K tokens
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-gate-lr2e3'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding config with config/train_gpt2_medium_grassmann_gated_lr2e3.py:
+# Phase 3: Grassmann + Gating at d=1024
+# Reduced LR: 2e-3 (vs 8e-3 which was too aggressive)
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1
+bias = False  # Grassmann requires no bias
+
+# Enable both Grassmann and Gating
+use_grassmann = True
+use_gating = True
+
+# Grassmann configuration
+# Non-skip-facing layers (c_attn, mlp.c_fc): G_{1.0, 0.0, r}
+grass_rank = 512  # 50% of n_embd (keep same as 8e-3 run)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 2e-3  # Reduced from 8e-3 (4× lower, ~3.3× AdamW base)
+
+# Gating configuration
+gate_type = 'headwise'  # 16K params/layer (efficient)
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 100000  # Initial test (can extend to 600k later)
+warmup_iters = 2000  # Standard warmup
+lr_decay_iters = 100000  # Cosine decay to min_lr
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Effective batch = 64 × 12 × 4 GPUs = 3072 sequences × 1024 seq_len = 3,145,728 tokens
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 64  # Per GPU
+gradient_accumulation_steps = 12  # Total 768 sequences per GPU, 786K tokens
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-gate-lr2e3'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding config with config/train_gpt2_medium_grassmann_gated_lr2e3.py:
+# Phase 3: Grassmann + Gating at d=1024
+# Reduced LR: 2e-3 (vs 8e-3 which was too aggressive)
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1
+bias = False  # Grassmann requires no bias
+
+# Enable both Grassmann and Gating
+use_grassmann = True
+use_gating = True
+
+# Grassmann configuration
+# Non-skip-facing layers (c_attn, mlp.c_fc): G_{1.0, 0.0, r}
+grass_rank = 512  # 50% of n_embd (keep same as 8e-3 run)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 2e-3  # Reduced from 8e-3 (4× lower, ~3.3× AdamW base)
+
+# Gating configuration
+gate_type = 'headwise'  # 16K params/layer (efficient)
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 100000  # Initial test (can extend to 600k later)
+warmup_iters = 2000  # Standard warmup
+lr_decay_iters = 100000  # Cosine decay to min_lr
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Effective batch = 64 × 12 × 4 GPUs = 3072 sequences × 1024 seq_len = 3,145,728 tokens
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 64  # Per GPU
+gradient_accumulation_steps = 12  # Total 768 sequences per GPU, 786K tokens
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-gate-lr2e3'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+tokens per iteration will be: 786,432
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+tokens per iteration will be: 786,432
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+tokens per iteration will be: 786,432
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+tokens per iteration will be: 786,432
+Initializing a new model from scratch
+defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)
+number of parameters: 353.55M
+number of parameters: 353.55M
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (24 blocks):
+  c_attn ranks:       [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 48 weight matrices, 176,160,768 params
+AdamW decay parameters: 50 tensors, 178,388,992 params
+AdamW no-decay parameters: 49 tensors, 50,176 params
+  transformer.h.0.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.0.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (24 blocks):
+  c_attn ranks:       [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 48 weight matrices, 176,160,768 params
+AdamW decay parameters: 50 tensors, 178,388,992 params
+AdamW no-decay parameters: 49 tensors, 50,176 params
+  transformer.h.0.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.0.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+number of parameters: 353.55M
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (24 blocks):
+  c_attn ranks:       [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 48 weight matrices, 176,160,768 params
+AdamW decay parameters: 50 tensors, 178,388,992 params
+AdamW no-decay parameters: 49 tensors, 50,176 params
+  transformer.h.0.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.0.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+using fused AdamW: True
+using fused AdamW: True
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 48
+
+Initializing attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 48
+
+Initializing attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.0.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.0.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+number of parameters: 353.55M
+using fused AdamW: True
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 48
+
+Initializing attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.0.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (24 blocks):
+  c_attn ranks:       [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 48 weight matrices, 176,160,768 params
+AdamW decay parameters: 50 tensors, 178,388,992 params
+AdamW no-decay parameters: 49 tensors, 50,176 params
+  transformer.h.0.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.0.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.1.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.2.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.3.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.4.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.5.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.6.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.7.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.8.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.9.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.10.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.11.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.12.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.13.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.14.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.15.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.16.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.17.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.18.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.19.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.20.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.21.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.22.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.attn.c_attn.weight: k=3, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  transformer.h.23.mlp.c_fc.weight: k=4, G_{1.0,0.0,512}, lr=0.008, scale=1.0, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.0.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.0.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.0.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+using fused AdamW: True
+
+=== Initializing Grassmann Weights (Block Decomposition) ===
+Number of weight types to initialize: 48
+
+Initializing attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.0.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.0.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.1
+Grassmann components: dropout = 0.05
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.1
+Grassmann components: dropout = 0.05
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.1.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.1.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+
+Initializing transformer.h.2.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.2.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.2.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.1
+Grassmann components: dropout = 0.05
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+  Initialized transformer.h.3.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.3.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.3.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.4.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.4.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.5.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.5.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.5.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Initialized transformer.h.6.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.6.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.6.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.7.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.7.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.8.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.8.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Initialized transformer.h.8.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.9.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.9.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.9.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.10.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.10.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.11.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.11.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Initialized transformer.h.11.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.12.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.12.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.13.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.13.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.13.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Initialized transformer.h.14.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.14.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.14.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.15.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.15.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.16.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.16.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.17.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.17.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Initialized transformer.h.17.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.18.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.18.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.19.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.19.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Initialized transformer.h.19.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.20.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.20.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Initialized transformer.h.20.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.21.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.21.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.22.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.22.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.attn.c_attn.: k=3, G_{1.0,0.0,512}, type=vertical
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Initialized transformer.h.23.attn.c_attn.weight (3072, 1024) as 3 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Initializing transformer.h.23.mlp.c_fc.: k=4, G_{1.0,0.0,512}, type=vertical
+  Initialized transformer.h.23.mlp.c_fc.weight (4096, 1024) as 4 blocks of (1024, 1024) on G_{1.0,0.0,512}
+
+Grassmann block initialization complete.
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.1
+Grassmann components: dropout = 0.05
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+step 0: train loss 10.9301, val loss 10.9293
+iter 0: loss 10.9314, time 88019.84ms, mfu -100.00%
+iter 10: loss 9.7765, time 5445.63ms, mfu 56.00%
+iter 20: loss 9.3551, time 5466.60ms, mfu 55.98%
+iter 30: loss 9.0316, time 5479.25ms, mfu 55.94%
+iter 40: loss 8.7825, time 5493.12ms, mfu 55.90%
+iter 50: loss 8.5512, time 5490.20ms, mfu 55.87%
+iter 60: loss 8.3907, time 5678.32ms, mfu 55.65%
+iter 70: loss 8.1605, time 5485.55ms, mfu 55.64%
+iter 80: loss 7.8518, time 5488.38ms, mfu 55.64%
+iter 90: loss 7.6980, time 5488.21ms, mfu 55.63%
+iter 100: loss 7.3419, time 5484.13ms, mfu 55.63%
+iter 110: loss 7.2929, time 5509.68ms, mfu 55.60%
+iter 120: loss 7.1302, time 5506.27ms, mfu 55.58%
+iter 130: loss 6.9745, time 5526.60ms, mfu 55.54%
+iter 140: loss 6.9203, time 5503.06ms, mfu 55.52%
+iter 150: loss 6.9475, time 5521.51ms, mfu 55.49%
+iter 160: loss 6.7268, time 5485.36ms, mfu 55.50%
+iter 170: loss 6.6613, time 5492.46ms, mfu 55.51%
+iter 180: loss 6.5083, time 5529.67ms, mfu 55.47%
+iter 190: loss 6.4208, time 5498.84ms, mfu 55.47%
+iter 200: loss 6.5040, time 5523.08ms, mfu 55.44%
+iter 210: loss 6.3748, time 5484.72ms, mfu 55.46%
+iter 220: loss 6.4775, time 5489.53ms, mfu 55.47%
+iter 230: loss 6.2803, time 5523.34ms, mfu 55.44%
+iter 240: loss 6.3577, time 5501.02ms, mfu 55.44%
+iter 250: loss 6.2004, time 5485.18ms, mfu 55.46%
+iter 260: loss 6.2257, time 5520.83ms, mfu 55.43%
+iter 270: loss 6.1811, time 5499.29ms, mfu 55.44%
+iter 280: loss 6.1677, time 5534.90ms, mfu 55.40%
+iter 290: loss 6.0631, time 5518.85ms, mfu 55.39%
+iter 300: loss 6.0835, time 5547.72ms, mfu 55.35%
+iter 310: loss 6.0384, time 5522.43ms, mfu 55.33%
+iter 320: loss 6.0813, time 5523.12ms, mfu 55.32%
+iter 330: loss 6.0818, time 5525.57ms, mfu 55.31%
+iter 340: loss 6.0135, time 5536.51ms, mfu 55.28%
+iter 350: loss 6.0256, time 5495.64ms, mfu 55.31%
+iter 360: loss 5.9066, time 5499.15ms, mfu 55.32%
+iter 370: loss 5.9538, time 5521.61ms, mfu 55.31%
+iter 380: loss 5.9076, time 5494.71ms, mfu 55.33%
+iter 390: loss 5.8333, time 5502.50ms, mfu 55.34%
+iter 400: loss 5.9399, time 5538.28ms, mfu 55.31%
+iter 410: loss 5.9259, time 5530.38ms, mfu 55.29%
+iter 420: loss 5.8337, time 5510.94ms, mfu 55.30%
+iter 430: loss 5.7948, time 5489.88ms, mfu 55.32%
+iter 440: loss 5.9209, time 5488.17ms, mfu 55.35%
+iter 450: loss 5.8532, time 5499.46ms, mfu 55.36%
+iter 460: loss 5.7504, time 5510.82ms, mfu 55.35%
+iter 470: loss 5.7839, time 5514.10ms, mfu 55.35%
+iter 480: loss 5.6936, time 5510.28ms, mfu 55.35%
+iter 490: loss 5.6560, time 5508.28ms, mfu 55.35%
+iter 500: loss 5.6939, time 5513.19ms, mfu 55.35%
+iter 510: loss 5.7176, time 5487.81ms, mfu 55.37%
+iter 520: loss 5.6761, time 5504.10ms, mfu 55.37%
+iter 530: loss 5.6112, time 5498.33ms, mfu 55.38%
+iter 540: loss 5.5907, time 5508.19ms, mfu 55.38%
+iter 550: loss 5.5608, time 5496.60ms, mfu 55.39%
+iter 560: loss 5.5582, time 5500.88ms, mfu 55.39%
+iter 570: loss 5.7363, time 5504.21ms, mfu 55.39%
+iter 580: loss 5.5017, time 5496.74ms, mfu 55.40%
+iter 590: loss 5.6199, time 5505.78ms, mfu 55.40%
+iter 600: loss 5.6457, time 5492.81ms, mfu 55.41%
+iter 610: loss 5.5441, time 5517.81ms, mfu 55.40%
+iter 620: loss 5.5524, time 5489.37ms, mfu 55.41%
+iter 630: loss 5.5558, time 5509.00ms, mfu 55.41%
+iter 640: loss 5.4747, time 5471.98ms, mfu 55.44%
+iter 650: loss 5.4739, time 5498.55ms, mfu 55.44%
+iter 660: loss 5.4317, time 5530.84ms, mfu 55.41%
+iter 670: loss 5.3874, time 5507.25ms, mfu 55.41%
+iter 680: loss 5.3784, time 5478.41ms, mfu 55.43%
+iter 690: loss 5.3477, time 5517.84ms, mfu 55.42%
+iter 700: loss 5.4267, time 5494.44ms, mfu 55.42%
+iter 710: loss 5.3815, time 5494.89ms, mfu 55.43%
+iter 720: loss 5.3180, time 5500.50ms, mfu 55.43%
+iter 730: loss 5.3660, time 5475.06ms, mfu 55.46%
+iter 740: loss 5.3516, time 5485.81ms, mfu 55.47%
+iter 750: loss 5.3522, time 5492.70ms, mfu 55.48%
+iter 760: loss 5.3476, time 5475.05ms, mfu 55.50%
+iter 770: loss 5.2949, time 5491.84ms, mfu 55.50%
+iter 780: loss 5.2835, time 5491.30ms, mfu 55.50%
+iter 790: loss 5.1955, time 5477.70ms, mfu 55.52%
+iter 800: loss 5.2320, time 5500.42ms, mfu 55.51%
+iter 810: loss 5.3137, time 5490.20ms, mfu 55.52%
+iter 820: loss 5.1329, time 5494.58ms, mfu 55.51%
+iter 830: loss 5.2151, time 5497.59ms, mfu 55.51%
+iter 840: loss 5.2979, time 5488.92ms, mfu 55.51%
+iter 850: loss 5.2337, time 5501.84ms, mfu 55.51%
+iter 860: loss 5.1497, time 5493.62ms, mfu 55.51%
+iter 870: loss 5.1508, time 5482.92ms, mfu 55.52%
+iter 880: loss 5.1024, time 5497.16ms, mfu 55.51%
+iter 890: loss 5.0838, time 5477.26ms, mfu 55.53%
+iter 900: loss 5.0789, time 5505.74ms, mfu 55.51%
+iter 910: loss 5.1235, time 5524.65ms, mfu 55.48%
+iter 920: loss 5.1039, time 5495.60ms, mfu 55.48%
+iter 930: loss 5.0817, time 5503.37ms, mfu 55.48%
+iter 940: loss 5.0614, time 5482.23ms, mfu 55.49%
+iter 950: loss 5.0872, time 5486.90ms, mfu 55.50%
+iter 960: loss 4.9790, time 5512.47ms, mfu 55.48%
+iter 970: loss 5.1012, time 5470.16ms, mfu 55.51%
+iter 980: loss 4.9744, time 5496.60ms, mfu 55.51%
+iter 990: loss 5.1075, time 5495.72ms, mfu 55.50%
+step 1000: train loss 4.9368, val loss 4.9306
+saving checkpoint to /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-gate-lr2e3
+iter 1000: loss 4.9585, time 78120.70ms, mfu 50.34%
+iter 1010: loss 4.9758, time 5495.74ms, mfu 50.86%
+iter 1020: loss 5.0343, time 5489.03ms, mfu 51.33%
+iter 1030: loss 4.9025, time 5519.29ms, mfu 51.72%
+iter 1040: loss 4.9343, time 5502.57ms, mfu 52.09%
+iter 1050: loss 4.8777, time 5490.25ms, mfu 52.44%
+iter 1060: loss 4.9065, time 5492.44ms, mfu 52.74%
+iter 1070: loss 4.8761, time 5493.72ms, mfu 53.02%
+iter 1080: loss 4.8419, time 5474.75ms, mfu 53.29%
+iter 1090: loss 4.8707, time 5482.17ms, mfu 53.52%
+iter 1100: loss 4.8825, time 5487.83ms, mfu 53.73%
+iter 1110: loss 4.9245, time 5485.55ms, mfu 53.91%
+iter 1120: loss 4.9473, time 5491.23ms, mfu 54.07%
+iter 1130: loss 4.7893, time 5487.98ms, mfu 54.22%
+iter 1140: loss 4.9269, time 5491.96ms, mfu 54.35%
+iter 1150: loss 4.8013, time 5449.50ms, mfu 54.51%
+iter 1160: loss 4.8041, time 5480.41ms, mfu 54.63%
+iter 1170: loss 4.7014, time 5489.52ms, mfu 54.72%
+iter 1180: loss 4.7878, time 5496.70ms, mfu 54.80%
+iter 1190: loss 4.7814, time 5490.71ms, mfu 54.87%
+iter 1200: loss 4.7512, time 5484.35ms, mfu 54.94%
+iter 1210: loss 4.6802, time 5477.51ms, mfu 55.02%
+iter 1220: loss 4.7291, time 5474.46ms, mfu 55.08%
+iter 1230: loss 4.8476, time 5470.97ms, mfu 55.15%
+iter 1240: loss 4.8232, time 5499.34ms, mfu 55.18%
+iter 1250: loss 4.7846, time 5502.51ms, mfu 55.20%
+iter 1260: loss 4.7213, time 5502.80ms, mfu 55.23%
+iter 1270: loss 4.7153, time 5472.07ms, mfu 55.28%
+iter 1280: loss 4.7548, time 5503.11ms, mfu 55.29%
+iter 1290: loss 4.6289, time 5472.67ms, mfu 55.33%
+iter 1300: loss 4.7173, time 5470.44ms, mfu 55.37%
+iter 1310: loss 4.5796, time 5475.45ms, mfu 55.41%
+iter 1320: loss 4.5999, time 5478.94ms, mfu 55.43%
+iter 1330: loss 4.6810, time 5493.90ms, mfu 55.44%
+iter 1340: loss 4.6599, time 5489.28ms, mfu 55.45%
+iter 1350: loss 4.6364, time 5509.21ms, mfu 55.44%
+iter 1360: loss 4.5072, time 5455.92ms, mfu 55.49%
+iter 1370: loss 4.6750, time 5476.02ms, mfu 55.51%
+iter 1380: loss 4.6302, time 5475.17ms, mfu 55.52%
+iter 1390: loss 4.6229, time 5493.98ms, mfu 55.52%
+iter 1400: loss 4.6546, time 5474.32ms, mfu 55.54%
+iter 1410: loss 4.4770, time 5480.60ms, mfu 55.55%
+iter 1420: loss 4.5188, time 5447.10ms, mfu 55.59%

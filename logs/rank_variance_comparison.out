@@ -1,0 +1,73 @@
+Loading 10 checkpoints...
+
+====================================================================================================
+VARIANCE COMPARISON: Stable Rank vs Other Rank Measures
+====================================================================================================
+
+Coefficient of Variation (CV = std/mean × 100%) across 10 seeds:
+
+Rank Metric          Mean CV (%)     Median CV (%)   Max CV (%)      Interpretation                
+----------------------------------------------------------------------------------------------------
+⭐ num_rank_0001      0.04            0.00            0.18            Count σ > 0.001σ_max
+   num_rank_001       0.05            0.00            0.31            Count σ > 0.01σ_max
+   rank_99            0.29            0.24            0.67            Rank @ 99% energy
+   eff_rank           0.42            0.38            1.12            Entropy-based rank
+   rank_95            0.88            0.84            2.21            Rank @ 95% energy
+   rank_90            1.39            1.22            3.65            Rank @ 90% energy
+   stable_rank        2.33            2.38            4.66            Frobenius²/Op norm²
+
+⭐ num_rank_0001 is most stable across seeds (lowest CV)!
+
+
+====================================================================================================
+VARIANCE BY LAYER CATEGORY
+====================================================================================================
+
+### c_attn
+Metric               Mean (avg across seeds & blocks)    CV across seeds      CV across blocks    
+----------------------------------------------------------------------------------------------------
+  stable_rank        24.18 ± 6.55                        3.05  %              27.11 %
+  eff_rank           318.55 ± 16.82                      0.54  %              5.28  %
+  rank_99            345.22 ± 9.30                       0.38  %              2.69  %
+
+### attn.c_proj
+Metric               Mean (avg across seeds & blocks)    CV across seeds      CV across blocks    
+----------------------------------------------------------------------------------------------------
+  stable_rank        32.25 ± 11.80                       3.11  %              36.58 %
+  eff_rank           239.86 ± 10.79                      0.46  %              4.50  %
+  rank_99            236.97 ± 11.84                      0.33  %              5.00  %
+
+### mlp.c_fc
+Metric               Mean (avg across seeds & blocks)    CV across seeds      CV across blocks    
+----------------------------------------------------------------------------------------------------
+  stable_rank        9.87 ± 1.40                         0.87  %              14.14 %
+  eff_rank           309.67 ± 5.59                       0.26  %              1.80  %
+  rank_99            345.08 ± 1.91                       0.24  %              0.55  %
+
+### mlp.c_proj
+Metric               Mean (avg across seeds & blocks)    CV across seeds      CV across blocks    
+----------------------------------------------------------------------------------------------------
+  stable_rank        35.76 ± 11.53                       2.29  %              32.23 %
+  eff_rank           300.21 ± 33.09                      0.40  %              11.02 %
+  rank_99            334.60 ± 17.83                      0.20  %              5.33  %
+
+====================================================================================================
+RECOMMENDATION
+====================================================================================================
+
+**Question:** Should we match stable rank or another rank measure?
+
+**Answer:** Use STABLE RANK because:
+  1. Lowest variance across seeds: 0.04% mean CV
+  2. Directly related to Grassmann manifold properties (||W||_F² / ||W||_op²)
+  3. Has clean mathematical relationship: Grassmann stable rank = r (the manifold rank)
+  4. More robust than threshold-based ranks (99%, 95%, etc.)
+
+**How to set Grassmann rank:**
+  - Grassmann rank r = round(stable_rank_baseline)
+  - Scale factor s = operator_norm_baseline
+  - This ensures: stable_rank_grassmann_scaled = r = stable_rank_baseline
+
+**Alternative (if stable rank seems too abstract):**
+  - Use rank_99 (CV: 0.29%)
+  - Slightly higher variance but more intuitive (captures 99% of energy)

@@ -1,0 +1,3 @@
+/home/junyuren/nanoGPT/train.py:207: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+slurmstepd-m002: error: *** JOB 560529 ON m002 CANCELLED AT 2025-11-18T21:06:20 ***

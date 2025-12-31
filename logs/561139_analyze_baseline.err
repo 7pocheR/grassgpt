@@ -1,0 +1,5 @@
+ERROR: Unable to locate a modulefile for 'Anaconda3/2024.02-1'
+Traceback (most recent call last):
+  File "/home/junyuren/nanoGPT/analyze_baseline_norms.py", line 9, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
