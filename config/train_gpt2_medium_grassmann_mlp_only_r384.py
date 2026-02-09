@@ -1,0 +1,72 @@
+# COMPONENT ISOLATION: MLP-only Grassmann (c_fc only, c_attn uses AdamW)
+# Tests hypothesis: Does Grassmann help specifically in MLP (feedforward)?
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1  # Unified
+bias = False
+
+# Enable Grassmann ONLY for c_fc (MLP expansion)
+use_grassmann = True
+use_grassmann_c_attn = False  # DISABLE for c_attn (use AdamW instead)
+use_grassmann_c_fc = True     # Enable for c_fc
+use_full_block_decomp = False  # Not used for c_fc (uses 4-block hybrid)
+
+# Grassmann configuration
+# c_attn: STANDARD ADAMW (not Grassmann)
+# c_fc: 4-block decomposition with block-level gating
+grass_rank = 384  # Used for c_fc blocks
+grass_scale = 10.0  # Uniform x=10 scaling for c_fc
+grass_a = 1.0  # Identity-centered
+grass_b = 0.0
+grass_lr = 2e-3  # Unified Tier 1 LR
+
+# Gating LRs (only for c_fc block gates, c_attn has no gates)
+gate_lr = 1.2e-3  # 2× learning_rate
+embed_lr = 3e-4   # 0.5× learning_rate
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 13000  # ~20B tokens @ 1.57M tokens/iter
+warmup_iters = 2000  # Unified
+lr_decay_iters = 13000
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Match Tier 1: 32 × 12 × 4 GPUs = 1,572,864 tokens/iter
+batch_size = 32  # Per GPU
+gradient_accumulation_steps = 12  # MUST be divisible by 4 GPUs
+
+# Regularization
+weight_decay = 1e-1  # Unified
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# Output directory
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-mlp-only-r384'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'
+device = 'cuda'
+
+# Phase identifier (for logging, not used in model)
+grassmann_phase = 'mlp_only'  # Component isolation: c_attn AdamW, c_fc Grassmann

@@ -1,0 +1,34 @@
+=== CONTINUATION CHAINS ACTIVE ===
+Generated: 2026-01-01 04:37 UTC
+
+## Chain 1: 24L Hybrid (r=384)
+Original job: 608059 (COMPLETED, 8k iters)
+Chain start: 610546 → 610557 (10 sessions)
+Expected total: 80k iterations (80% of 100k target)
+Status: RUNNING (session 1/10)
+
+## Chain 2: 36L Hybrid (r=256) 
+Original job: 608061 (COMPLETED, 3k iters)
+Chain start: 610547 → 610611 (55 sessions)
+Expected total: 165k iterations (98% of 168k target)
+Status: RUNNING (session 1/55)
+
+## Chain 3: 36L Full Block (r=256)
+Original job: 609282 (COMPLETED, 4k iters)
+Chain start: 610548 → 610651 (41 sessions)
+Expected total: 164k iterations (98% of 168k target)
+Status: RUNNING (session 1/41)
+
+## Overall Status
+- Total sessions queued: 106
+- Currently running: 3
+- Pending with dependencies: 103
+- Estimated completion: ~27 days (36L hybrid), ~20 days (36L full block), ~5 days (24L)
+
+## Monitoring Commands
+squeue -u $USER                    # Check all jobs
+squeue -u $USER -t RUNNING         # Running only
+sacct -j 610546,610547,610548      # Check current session status
+tail -f logs/610546_*.out          # Monitor 24L hybrid
+tail -f logs/610547_*.out          # Monitor 36L hybrid
+tail -f logs/610548_*.out          # Monitor 36L full block

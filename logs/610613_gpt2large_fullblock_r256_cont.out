@@ -1,0 +1,1843 @@
+=== Job Info ===
+Job ID: 610613
+Continuing from Job 609282
+Node: n001
+GPUs: 
+Start time: Fri Jan  2 04:37:27 AM CST 2026
+
+=== Configuration ===
+Resuming from checkpoint: /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256/ckpt.pt
+Architecture: 36 layers, d=1024, 16 heads (~660M params)
+Full Block Decomposition: 16×16 grid = 768 c_attn blocks per layer
+Block size: 64×64, rank=32 (50% of block size)
+Training target: 168k iters (100 tokens/param)
+Gating: per_head (48 gates for c_attn + 4 for mlp.c_fc)
+
+=== Resuming Training ===
+Overriding config with config/train_gpt2_large_grassmann_fullblock_r256.py:
+# Optimal "Wide-Deep" Architecture: 36 layers, r=256, FULL block decomposition
+# Based on OPTIMAL_GRASSMANN_EXPERIMENT.md design
+# Full 16×16 grid: 768 blocks total for Q/K/V (256 per projection)
+
+# GPT-2 Large-ish architecture (36 layers instead of GPT-2 Large's 36 layers @ d=1280)
+n_layer = 36  # 50% more depth than current (24 → 36)
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.05  # Reduced from 0.1 (manifold provides regularization)
+bias = False  # Grassmann requires no bias
+
+# Enable Grassmann with FULL block decomposition
+use_grassmann = True
+use_full_block_decomp = True  # Use 16×16 grid instead of 3-block hybrid
+
+# Full block decomposition configuration
+full_block_size = 64  # 1024 / 64 = 16 blocks per dimension → 16×16 grid = 256 blocks
+full_block_gating_mode = 'per_head'  # Options: 'per_head' (16 gates), 'per_block' (256 gates), 'per_block_segment' (256 gates, efficient)
+
+# Grassmann configuration
+# Note: grass_rank is used for mlp.c_fc blocks, not for c_attn full blocks
+# c_attn blocks use rank = full_block_size // 2 automatically (32 for 64×64 blocks)
+grass_rank = 256  # STRONGER constraint: 25% of n_embd, for mlp.c_fc (4 blocks)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 3e-3  # Conservative for deeper network (was 2e-3 for 24L)
+
+# Gating LRs
+# For full block decomp: per_head mode has 16 gates/layer, per_block_segment has 256 gates/layer
+gate_lr = 1.5e-3  # 2.5× learning_rate for gates
+embed_lr = 3e-4   # 0.5× learning_rate for embeddings
+
+# Training hyperparameters - TARGET: 100 tokens/param
+# Total params: ~660M → 66B tokens → 168k iters @ 393K tokens/iter
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 168000  # 100 tokens/param (vs 100k before, which was only 3.8 tokens/param!)
+warmup_iters = 6000  # Longer for deeper network (vs 2000 before)
+lr_decay_iters = 150000  # CRITICAL: < max_iters for fine-tuning region!
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# REDUCED for full block decomposition (768 blocks/layer uses more memory)
+# 16 × 24 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens (same total)
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 16  # Per GPU (reduced from 32 due to memory constraints)
+gradient_accumulation_steps = 24  # Doubled to maintain same tokens/iter (393K tokens)
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2 (applies to AdamW params only)
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding: init_from = resume
+Overriding config with config/train_gpt2_large_grassmann_fullblock_r256.py:
+# Optimal "Wide-Deep" Architecture: 36 layers, r=256, FULL block decomposition
+# Based on OPTIMAL_GRASSMANN_EXPERIMENT.md design
+# Full 16×16 grid: 768 blocks total for Q/K/V (256 per projection)
+
+# GPT-2 Large-ish architecture (36 layers instead of GPT-2 Large's 36 layers @ d=1280)
+n_layer = 36  # 50% more depth than current (24 → 36)
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.05  # Reduced from 0.1 (manifold provides regularization)
+bias = False  # Grassmann requires no bias
+
+# Enable Grassmann with FULL block decomposition
+use_grassmann = True
+use_full_block_decomp = True  # Use 16×16 grid instead of 3-block hybrid
+
+# Full block decomposition configuration
+full_block_size = 64  # 1024 / 64 = 16 blocks per dimension → 16×16 grid = 256 blocks
+full_block_gating_mode = 'per_head'  # Options: 'per_head' (16 gates), 'per_block' (256 gates), 'per_block_segment' (256 gates, efficient)
+
+# Grassmann configuration
+# Note: grass_rank is used for mlp.c_fc blocks, not for c_attn full blocks
+# c_attn blocks use rank = full_block_size // 2 automatically (32 for 64×64 blocks)
+grass_rank = 256  # STRONGER constraint: 25% of n_embd, for mlp.c_fc (4 blocks)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 3e-3  # Conservative for deeper network (was 2e-3 for 24L)
+
+# Gating LRs
+# For full block decomp: per_head mode has 16 gates/layer, per_block_segment has 256 gates/layer
+gate_lr = 1.5e-3  # 2.5× learning_rate for gates
+embed_lr = 3e-4   # 0.5× learning_rate for embeddings
+
+# Training hyperparameters - TARGET: 100 tokens/param
+# Total params: ~660M → 66B tokens → 168k iters @ 393K tokens/iter
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 168000  # 100 tokens/param (vs 100k before, which was only 3.8 tokens/param!)
+warmup_iters = 6000  # Longer for deeper network (vs 2000 before)
+lr_decay_iters = 150000  # CRITICAL: < max_iters for fine-tuning region!
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# REDUCED for full block decomposition (768 blocks/layer uses more memory)
+# 16 × 24 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens (same total)
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 16  # Per GPU (reduced from 32 due to memory constraints)
+gradient_accumulation_steps = 24  # Doubled to maintain same tokens/iter (393K tokens)
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2 (applies to AdamW params only)
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding: init_from = resume
+Overriding config with config/train_gpt2_large_grassmann_fullblock_r256.py:
+# Optimal "Wide-Deep" Architecture: 36 layers, r=256, FULL block decomposition
+# Based on OPTIMAL_GRASSMANN_EXPERIMENT.md design
+# Full 16×16 grid: 768 blocks total for Q/K/V (256 per projection)
+
+# GPT-2 Large-ish architecture (36 layers instead of GPT-2 Large's 36 layers @ d=1280)
+n_layer = 36  # 50% more depth than current (24 → 36)
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.05  # Reduced from 0.1 (manifold provides regularization)
+bias = False  # Grassmann requires no bias
+
+# Enable Grassmann with FULL block decomposition
+use_grassmann = True
+use_full_block_decomp = True  # Use 16×16 grid instead of 3-block hybrid
+
+# Full block decomposition configuration
+full_block_size = 64  # 1024 / 64 = 16 blocks per dimension → 16×16 grid = 256 blocks
+full_block_gating_mode = 'per_head'  # Options: 'per_head' (16 gates), 'per_block' (256 gates), 'per_block_segment' (256 gates, efficient)
+
+# Grassmann configuration
+# Note: grass_rank is used for mlp.c_fc blocks, not for c_attn full blocks
+# c_attn blocks use rank = full_block_size // 2 automatically (32 for 64×64 blocks)
+grass_rank = 256  # STRONGER constraint: 25% of n_embd, for mlp.c_fc (4 blocks)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 3e-3  # Conservative for deeper network (was 2e-3 for 24L)
+
+# Gating LRs
+# For full block decomp: per_head mode has 16 gates/layer, per_block_segment has 256 gates/layer
+gate_lr = 1.5e-3  # 2.5× learning_rate for gates
+embed_lr = 3e-4   # 0.5× learning_rate for embeddings
+
+# Training hyperparameters - TARGET: 100 tokens/param
+# Total params: ~660M → 66B tokens → 168k iters @ 393K tokens/iter
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 168000  # 100 tokens/param (vs 100k before, which was only 3.8 tokens/param!)
+warmup_iters = 6000  # Longer for deeper network (vs 2000 before)
+lr_decay_iters = 150000  # CRITICAL: < max_iters for fine-tuning region!
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# REDUCED for full block decomposition (768 blocks/layer uses more memory)
+# 16 × 24 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens (same total)
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 16  # Per GPU (reduced from 32 due to memory constraints)
+gradient_accumulation_steps = 24  # Doubled to maintain same tokens/iter (393K tokens)
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2 (applies to AdamW params only)
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding config with config/train_gpt2_large_grassmann_fullblock_r256.py:
+Overriding: init_from = resume
+# Optimal "Wide-Deep" Architecture: 36 layers, r=256, FULL block decomposition
+# Based on OPTIMAL_GRASSMANN_EXPERIMENT.md design
+# Full 16×16 grid: 768 blocks total for Q/K/V (256 per projection)
+
+# GPT-2 Large-ish architecture (36 layers instead of GPT-2 Large's 36 layers @ d=1280)
+n_layer = 36  # 50% more depth than current (24 → 36)
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.05  # Reduced from 0.1 (manifold provides regularization)
+bias = False  # Grassmann requires no bias
+
+# Enable Grassmann with FULL block decomposition
+use_grassmann = True
+use_full_block_decomp = True  # Use 16×16 grid instead of 3-block hybrid
+
+# Full block decomposition configuration
+full_block_size = 64  # 1024 / 64 = 16 blocks per dimension → 16×16 grid = 256 blocks
+full_block_gating_mode = 'per_head'  # Options: 'per_head' (16 gates), 'per_block' (256 gates), 'per_block_segment' (256 gates, efficient)
+
+# Grassmann configuration
+# Note: grass_rank is used for mlp.c_fc blocks, not for c_attn full blocks
+# c_attn blocks use rank = full_block_size // 2 automatically (32 for 64×64 blocks)
+grass_rank = 256  # STRONGER constraint: 25% of n_embd, for mlp.c_fc (4 blocks)
+grass_scale = 10.0  # Uniform x=10 scaling
+grass_a = 1.0  # Identity-centered for non-skip layers
+grass_b = 0.0
+grass_lr = 3e-3  # Conservative for deeper network (was 2e-3 for 24L)
+
+# Gating LRs
+# For full block decomp: per_head mode has 16 gates/layer, per_block_segment has 256 gates/layer
+gate_lr = 1.5e-3  # 2.5× learning_rate for gates
+embed_lr = 3e-4   # 0.5× learning_rate for embeddings
+
+# Training hyperparameters - TARGET: 100 tokens/param
+# Total params: ~660M → 66B tokens → 168k iters @ 393K tokens/iter
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 168000  # 100 tokens/param (vs 100k before, which was only 3.8 tokens/param!)
+warmup_iters = 6000  # Longer for deeper network (vs 2000 before)
+lr_decay_iters = 150000  # CRITICAL: < max_iters for fine-tuning region!
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# REDUCED for full block decomposition (768 blocks/layer uses more memory)
+# 16 × 24 × 4 GPUs = 1536 sequences × 1024 seq_len = 1,572,864 tokens (same total)
+# grad_accum MUST be divisible by 4 GPUs (DDP requirement)
+batch_size = 16  # Per GPU (reduced from 32 due to memory constraints)
+gradient_accumulation_steps = 24  # Doubled to maintain same tokens/iter (393K tokens)
+
+# Regularization
+weight_decay = 1e-1  # Standard for GPT-2 (applies to AdamW params only)
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# CRITICAL: Save to scratch (home has strict disk quota!)
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'  # More stable than float16 for Grassmann
+device = 'cuda'
+
+# Phase identifier (for configure_optimizers_grassmann_phases)
+grassmann_phase = 'phase3'  # c_attn + mlp.c_fc (non-skip-facing only)
+
+Overriding: init_from = resume
+tokens per iteration will be: 393,216
+Resuming training from /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+tokens per iteration will be: 393,216
+Resuming training from /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+tokens per iteration will be: 393,216
+Resuming training from /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+tokens per iteration will be: 393,216
+Resuming training from /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+number of parameters: 506.49M
+number of parameters: 506.49M
+number of parameters: 506.49M
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (36 blocks):
+  c_attn ranks:       [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 252 weight matrices, 264,241,152 params
+AdamW optimizer groups:
+  Gates:      180 tensors, 1,916,928 params, lr=1.50e-03, wd=0.1
+  Projections: 72 tensors, 188,743,680 params, lr=6.00e-04, wd=0.1
+  Embeddings: 2 tensors, 52,559,872 params, lr=3.00e-04, wd=0.0
+  No decay:   73 tensors, 74,752 params, lr=6.00e-04, wd=0.0
+  transformer.h.0.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+number of parameters: 506.49M
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (36 blocks):
+  c_attn ranks:       [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 252 weight matrices, 264,241,152 params
+AdamW optimizer groups:
+  Gates:      180 tensors, 1,916,928 params, lr=1.50e-03, wd=0.1
+  Projections: 72 tensors, 188,743,680 params, lr=6.00e-04, wd=0.1
+  Embeddings: 2 tensors, 52,559,872 params, lr=3.00e-04, wd=0.0
+  No decay:   73 tensors, 74,752 params, lr=6.00e-04, wd=0.0
+  transformer.h.0.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (36 blocks):
+  c_attn ranks:       [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 252 weight matrices, 264,241,152 params
+AdamW optimizer groups:
+  Gates:      180 tensors, 1,916,928 params, lr=1.50e-03, wd=0.1
+  Projections: 72 tensors, 188,743,680 params, lr=6.00e-04, wd=0.1
+  Embeddings: 2 tensors, 52,559,872 params, lr=3.00e-04, wd=0.0
+  No decay:   73 tensors, 74,752 params, lr=6.00e-04, wd=0.0
+  transformer.h.0.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+
+=== Phase phase3 Grassmann Configuration ===
+
+Per-block configuration (36 blocks):
+  c_attn ranks:       [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  c_attn scales:      ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+  mlp.c_fc ranks:     [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+  mlp.c_fc scales:    ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00']
+Grassmann Muon parameters: 252 weight matrices, 264,241,152 params
+AdamW optimizer groups:
+  Gates:      180 tensors, 1,916,928 params, lr=1.50e-03, wd=0.1
+  Projections: 72 tensors, 188,743,680 params, lr=6.00e-04, wd=0.1
+  Embeddings: 2 tensors, 52,559,872 params, lr=3.00e-04, wd=0.0
+  No decay:   73 tensors, 74,752 params, lr=6.00e-04, wd=0.0
+  transformer.h.0.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.0.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.1.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.2.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.3.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.4.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.5.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.6.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.7.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.8.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.9.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.10.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.11.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.12.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.13.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.14.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.15.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.16.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.17.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.18.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.19.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.20.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.21.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.22.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.23.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.24.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.25.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.26.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.27.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.28.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.29.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.30.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.31.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.32.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.33.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.34.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.attn.c_attn.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.0.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.1.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.2.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+  transformer.h.35.mlp.c_fc.blocks.3.weight: k=1, G_{1.0,0.0,256}, lr=0.008, scale=1.0, type=None
+using fused AdamW: True
+using fused AdamW: True
+using fused AdamW: True
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.05
+Grassmann components: dropout = 0.025
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.05
+Grassmann components: dropout = 0.025
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.05
+Grassmann components: dropout = 0.025
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+using fused AdamW: True
+
+=== Setting up component-specific dropout ===
+AdamW components: dropout = 0.05
+Grassmann components: dropout = 0.025
+Component-specific dropout setup complete.
+
+=== Setting up norm-preserving scaling (Phase phase3) ===
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:0)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:1)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:3)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+  Added frozen 0.5×I scaling after mlp.c_fc (device=cuda:2)
+Norm-preserving scaling setup complete.
+compiling the model... (takes a ~minute)
+step 12000: train loss 3.1794, val loss 3.1849
+saving checkpoint to /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+iter 12000: loss 3.2484, time 120282.87ms, mfu -100.00%
+iter 12010: loss 3.2773, time 9823.11ms, mfu 22.82%
+iter 12020: loss 3.2199, time 9797.18ms, mfu 22.83%
+iter 12030: loss 3.1743, time 9828.79ms, mfu 22.83%
+iter 12040: loss 3.2169, time 9840.88ms, mfu 22.82%
+iter 12050: loss 3.1925, time 9858.52ms, mfu 22.82%
+iter 12060: loss 3.2395, time 9840.77ms, mfu 22.81%
+iter 12070: loss 3.2041, time 9865.42ms, mfu 22.80%
+iter 12080: loss 3.0959, time 9839.23ms, mfu 22.80%
+iter 12090: loss 3.0239, time 9855.19ms, mfu 22.80%
+iter 12100: loss 3.2571, time 9887.52ms, mfu 22.78%
+iter 12110: loss 3.2485, time 9846.28ms, mfu 22.78%
+iter 12120: loss 3.4264, time 9864.90ms, mfu 22.78%
+iter 12130: loss 3.2311, time 9849.65ms, mfu 22.78%
+iter 12140: loss 3.2231, time 9824.65ms, mfu 22.78%
+iter 12150: loss 3.0786, time 9842.91ms, mfu 22.78%
+iter 12160: loss 3.1688, time 9842.35ms, mfu 22.78%
+iter 12170: loss 3.1700, time 9843.53ms, mfu 22.78%
+iter 12180: loss 3.2473, time 9839.81ms, mfu 22.78%
+iter 12190: loss 3.4418, time 9868.55ms, mfu 22.77%
+iter 12200: loss 3.0980, time 9889.91ms, mfu 22.76%
+iter 12210: loss 3.0764, time 9827.56ms, mfu 22.77%
+iter 12220: loss 3.0323, time 9877.66ms, mfu 22.76%
+iter 12230: loss 3.0731, time 9800.66ms, mfu 22.77%
+iter 12240: loss 3.1142, time 9882.26ms, mfu 22.76%
+iter 12250: loss 3.1023, time 9842.68ms, mfu 22.77%
+iter 12260: loss 3.2777, time 9824.35ms, mfu 22.77%
+iter 12270: loss 3.0036, time 9852.76ms, mfu 22.77%
+iter 12280: loss 3.0762, time 9840.69ms, mfu 22.77%
+iter 12290: loss 3.1008, time 9858.33ms, mfu 22.77%
+iter 12300: loss 3.2754, time 9870.83ms, mfu 22.76%
+iter 12310: loss 3.2031, time 9827.31ms, mfu 22.77%
+iter 12320: loss 3.0426, time 9860.99ms, mfu 22.76%
+iter 12330: loss 3.2987, time 9841.81ms, mfu 22.77%
+iter 12340: loss 3.2285, time 9849.09ms, mfu 22.77%
+iter 12350: loss 3.2282, time 9820.99ms, mfu 22.77%
+iter 12360: loss 3.0109, time 9824.73ms, mfu 22.78%
+iter 12370: loss 3.4345, time 9859.76ms, mfu 22.77%
+iter 12380: loss 3.0274, time 9904.23ms, mfu 22.76%
+iter 12390: loss 3.2533, time 9873.17ms, mfu 22.75%
+iter 12400: loss 3.2489, time 9833.41ms, mfu 22.76%
+iter 12410: loss 3.0193, time 9833.60ms, mfu 22.76%
+iter 12420: loss 3.2520, time 9847.43ms, mfu 22.76%
+iter 12430: loss 3.0695, time 9844.71ms, mfu 22.76%
+iter 12440: loss 3.0229, time 9820.86ms, mfu 22.77%
+iter 12450: loss 3.3448, time 9872.11ms, mfu 22.77%
+iter 12460: loss 3.1730, time 9848.82ms, mfu 22.76%
+iter 12470: loss 3.2795, time 9843.77ms, mfu 22.77%
+iter 12480: loss 3.1063, time 9823.93ms, mfu 22.77%
+iter 12490: loss 3.3623, time 9835.04ms, mfu 22.77%
+iter 12500: loss 3.2591, time 9843.46ms, mfu 22.77%
+iter 12510: loss 3.2454, time 9820.58ms, mfu 22.78%
+iter 12520: loss 3.1820, time 9828.50ms, mfu 22.78%
+iter 12530: loss 3.2245, time 9847.69ms, mfu 22.78%
+iter 12540: loss 3.2955, time 9818.62ms, mfu 22.79%
+iter 12550: loss 3.1597, time 9827.17ms, mfu 22.79%
+iter 12560: loss 3.2360, time 9876.12ms, mfu 22.78%
+iter 12570: loss 3.1741, time 9887.76ms, mfu 22.77%
+iter 12580: loss 3.1276, time 9902.17ms, mfu 22.76%
+iter 12590: loss 3.2357, time 9858.06ms, mfu 22.76%
+iter 12600: loss 3.3587, time 9900.37ms, mfu 22.74%
+iter 12610: loss 3.3020, time 9850.59ms, mfu 22.75%
+iter 12620: loss 3.0785, time 9832.87ms, mfu 22.75%
+iter 12630: loss 3.2435, time 9864.28ms, mfu 22.75%
+iter 12640: loss 2.9913, time 9819.47ms, mfu 22.76%
+iter 12650: loss 3.2399, time 9856.40ms, mfu 22.76%
+iter 12660: loss 3.1646, time 9861.46ms, mfu 22.75%
+iter 12670: loss 3.2715, time 9864.61ms, mfu 22.75%
+iter 12680: loss 3.0426, time 9863.53ms, mfu 22.75%
+iter 12690: loss 3.2907, time 9812.03ms, mfu 22.76%
+iter 12700: loss 3.2436, time 9842.53ms, mfu 22.76%
+iter 12710: loss 3.2128, time 9811.93ms, mfu 22.77%
+iter 12720: loss 3.1483, time 9839.73ms, mfu 22.77%
+iter 12730: loss 3.1159, time 9877.72ms, mfu 22.76%
+iter 12740: loss 3.2983, time 9866.02ms, mfu 22.76%
+iter 12750: loss 2.9643, time 9862.67ms, mfu 22.76%
+iter 12760: loss 3.1633, time 9835.30ms, mfu 22.76%
+iter 12770: loss 3.2515, time 9878.44ms, mfu 22.76%
+iter 12780: loss 3.2614, time 9850.37ms, mfu 22.76%
+iter 12790: loss 3.2871, time 9851.70ms, mfu 22.76%
+iter 12800: loss 3.1820, time 9828.67ms, mfu 22.76%
+iter 12810: loss 3.2209, time 9837.03ms, mfu 22.76%
+iter 12820: loss 3.1675, time 9854.38ms, mfu 22.76%
+iter 12830: loss 3.2059, time 9865.21ms, mfu 22.76%
+iter 12840: loss 3.2080, time 9843.57ms, mfu 22.76%
+iter 12850: loss 3.2025, time 9880.65ms, mfu 22.75%
+iter 12860: loss 3.2382, time 9824.39ms, mfu 22.76%
+iter 12870: loss 3.2783, time 9865.14ms, mfu 22.76%
+iter 12880: loss 3.0309, time 9812.43ms, mfu 22.77%
+iter 12890: loss 3.3408, time 9856.54ms, mfu 22.76%
+iter 12900: loss 3.1217, time 9892.87ms, mfu 22.75%
+iter 12910: loss 3.3232, time 9894.50ms, mfu 22.74%
+iter 12920: loss 3.1413, time 9859.10ms, mfu 22.74%
+iter 12930: loss 3.2154, time 9893.02ms, mfu 22.74%
+iter 12940: loss 3.2261, time 9862.30ms, mfu 22.74%
+iter 12950: loss 3.2604, time 9840.64ms, mfu 22.74%
+iter 12960: loss 3.1943, time 9830.02ms, mfu 22.75%
+iter 12970: loss 3.0482, time 9856.56ms, mfu 22.75%
+iter 12980: loss 3.1244, time 9868.07ms, mfu 22.74%
+iter 12990: loss 3.0965, time 9841.83ms, mfu 22.75%
+step 13000: train loss 3.1731, val loss 3.1724
+saving checkpoint to /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+iter 13000: loss 3.2983, time 61344.18ms, mfu 20.84%
+iter 13010: loss 3.1841, time 9877.23ms, mfu 21.02%
+iter 13020: loss 3.1702, time 9881.19ms, mfu 21.19%
+iter 13030: loss 3.1800, time 9909.13ms, mfu 21.33%
+iter 13040: loss 3.2040, time 9889.89ms, mfu 21.47%
+iter 13050: loss 3.2435, time 9919.17ms, mfu 21.58%
+iter 13060: loss 3.1646, time 9876.98ms, mfu 21.69%
+iter 13070: loss 3.1631, time 9875.61ms, mfu 21.79%
+iter 13080: loss 3.0819, time 9814.37ms, mfu 21.90%
+iter 13090: loss 3.1476, time 9832.38ms, mfu 21.99%
+iter 13100: loss 3.2986, time 9856.46ms, mfu 22.07%
+iter 13110: loss 3.0763, time 9832.28ms, mfu 22.14%
+iter 13120: loss 3.2901, time 9855.98ms, mfu 22.20%
+iter 13130: loss 3.1312, time 9847.15ms, mfu 22.26%
+iter 13140: loss 3.1756, time 9860.21ms, mfu 22.30%
+iter 13150: loss 3.1785, time 9814.88ms, mfu 22.36%
+iter 13160: loss 3.1623, time 9861.93ms, mfu 22.40%
+iter 13170: loss 3.1510, time 9875.30ms, mfu 22.43%
+iter 13180: loss 3.1834, time 9879.81ms, mfu 22.45%
+iter 13190: loss 3.0724, time 9861.56ms, mfu 22.48%
+iter 13200: loss 3.1948, time 9854.06ms, mfu 22.51%
+iter 13210: loss 3.1602, time 9873.66ms, mfu 22.53%
+iter 13220: loss 3.1889, time 9853.60ms, mfu 22.55%
+iter 13230: loss 3.1147, time 9816.46ms, mfu 22.58%
+iter 13240: loss 3.1065, time 9842.36ms, mfu 22.60%
+iter 13250: loss 3.1606, time 9857.19ms, mfu 22.61%
+iter 13260: loss 3.1948, time 9830.56ms, mfu 22.63%
+iter 13270: loss 3.2200, time 9828.13ms, mfu 22.65%
+iter 13280: loss 3.1305, time 9855.28ms, mfu 22.66%
+iter 13290: loss 3.1157, time 9835.25ms, mfu 22.67%
+iter 13300: loss 3.1496, time 9822.62ms, mfu 22.69%
+iter 13310: loss 3.2761, time 9890.67ms, mfu 22.69%
+iter 13320: loss 3.1526, time 9860.99ms, mfu 22.69%
+iter 13330: loss 3.2963, time 9867.59ms, mfu 22.70%
+iter 13340: loss 3.3668, time 9844.17ms, mfu 22.70%
+iter 13350: loss 3.1676, time 9833.75ms, mfu 22.71%
+iter 13360: loss 3.0289, time 9851.80ms, mfu 22.72%
+iter 13370: loss 3.1539, time 9841.31ms, mfu 22.72%
+iter 13380: loss 3.0910, time 9844.37ms, mfu 22.73%
+iter 13390: loss 3.2125, time 9841.99ms, mfu 22.73%
+iter 13400: loss 3.0464, time 9829.64ms, mfu 22.74%
+iter 13410: loss 3.2458, time 9848.84ms, mfu 22.74%
+iter 13420: loss 3.1470, time 9865.49ms, mfu 22.74%
+iter 13430: loss 3.1338, time 9883.78ms, mfu 22.74%
+iter 13440: loss 3.1848, time 9892.27ms, mfu 22.73%
+iter 13450: loss 3.2250, time 9870.94ms, mfu 22.73%
+iter 13460: loss 3.1825, time 9885.32ms, mfu 22.72%
+iter 13470: loss 3.2547, time 9910.53ms, mfu 22.71%
+iter 13480: loss 3.0365, time 9851.13ms, mfu 22.72%
+iter 13490: loss 3.1125, time 9885.26ms, mfu 22.71%
+iter 13500: loss 3.2057, time 9870.17ms, mfu 22.71%
+iter 13510: loss 3.2037, time 9844.02ms, mfu 22.72%
+iter 13520: loss 3.1721, time 9858.54ms, mfu 22.72%
+iter 13530: loss 3.3264, time 9867.59ms, mfu 22.72%
+iter 13540: loss 3.1671, time 9858.98ms, mfu 22.72%
+iter 13550: loss 3.0684, time 9904.36ms, mfu 22.72%
+iter 13560: loss 3.2174, time 9882.58ms, mfu 22.71%
+iter 13570: loss 3.1811, time 9884.59ms, mfu 22.71%
+iter 13580: loss 3.1686, time 9855.10ms, mfu 22.71%
+iter 13590: loss 3.0478, time 9896.21ms, mfu 22.71%
+iter 13600: loss 3.0581, time 9870.01ms, mfu 22.71%
+iter 13610: loss 3.1387, time 9897.65ms, mfu 22.70%
+iter 13620: loss 3.1315, time 9886.64ms, mfu 22.70%
+iter 13630: loss 3.2654, time 9877.78ms, mfu 22.70%
+iter 13640: loss 3.2447, time 9899.87ms, mfu 22.69%
+iter 13650: loss 3.1799, time 9870.06ms, mfu 22.70%
+iter 13660: loss 3.0772, time 9883.11ms, mfu 22.70%
+iter 13670: loss 3.1783, time 9858.93ms, mfu 22.70%
+iter 13680: loss 3.1754, time 9886.89ms, mfu 22.70%
+iter 13690: loss 2.9495, time 9869.25ms, mfu 22.70%
+iter 13700: loss 3.1636, time 9892.75ms, mfu 22.70%
+iter 13710: loss 3.1394, time 9910.70ms, mfu 22.69%
+iter 13720: loss 3.2908, time 9882.28ms, mfu 22.69%
+iter 13730: loss 3.2434, time 9862.96ms, mfu 22.69%
+iter 13740: loss 3.1944, time 9886.14ms, mfu 22.69%
+iter 13750: loss 3.0717, time 9861.06ms, mfu 22.70%
+iter 13760: loss 3.2453, time 9888.38ms, mfu 22.69%
+iter 13770: loss 3.2683, time 10099.76ms, mfu 22.64%
+iter 13780: loss 3.2559, time 9890.24ms, mfu 22.65%
+iter 13790: loss 3.1991, time 9927.69ms, mfu 22.64%
+iter 13800: loss 3.2295, time 9877.43ms, mfu 22.65%
+iter 13810: loss 3.0668, time 9898.17ms, mfu 22.65%
+iter 13820: loss 3.2109, time 9914.85ms, mfu 22.64%
+iter 13830: loss 3.1052, time 9889.81ms, mfu 22.65%
+iter 13840: loss 3.0446, time 9889.37ms, mfu 22.65%
+iter 13850: loss 3.2322, time 9879.51ms, mfu 22.65%
+iter 13860: loss 3.0774, time 9892.74ms, mfu 22.65%
+iter 13870: loss 3.2339, time 9894.04ms, mfu 22.65%
+iter 13880: loss 3.1752, time 9897.21ms, mfu 22.65%
+iter 13890: loss 3.0609, time 9910.66ms, mfu 22.65%
+iter 13900: loss 3.1377, time 9912.15ms, mfu 22.65%
+iter 13910: loss 3.1041, time 9894.75ms, mfu 22.65%
+iter 13920: loss 3.1544, time 9906.42ms, mfu 22.65%
+iter 13930: loss 3.2704, time 9881.16ms, mfu 22.65%
+iter 13940: loss 3.3005, time 9869.85ms, mfu 22.66%
+iter 13950: loss 3.1252, time 9877.78ms, mfu 22.66%
+iter 13960: loss 3.1853, time 9837.30ms, mfu 22.67%
+iter 13970: loss 3.3580, time 9864.08ms, mfu 22.68%
+iter 13980: loss 2.9989, time 9880.16ms, mfu 22.68%
+iter 13990: loss 3.1473, time 9879.64ms, mfu 22.68%
+step 14000: train loss 3.1462, val loss 3.1608
+saving checkpoint to /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-fullblock-r256
+iter 14000: loss 3.1464, time 65411.08ms, mfu 20.76%
+iter 14010: loss 3.0989, time 9874.72ms, mfu 20.95%
+iter 14020: loss 2.9540, time 9863.13ms, mfu 21.13%
+iter 14030: loss 3.1409, time 9906.39ms, mfu 21.28%
+iter 14040: loss 3.1726, time 9841.70ms, mfu 21.43%
+iter 14050: loss 3.1403, time 9825.41ms, mfu 21.57%
+iter 14060: loss 3.4098, time 9835.62ms, mfu 21.69%
+iter 14070: loss 3.1937, time 9849.58ms, mfu 21.80%
+iter 14080: loss 3.0741, time 9881.67ms, mfu 21.89%
+iter 14090: loss 3.2052, time 9900.32ms, mfu 21.96%
+iter 14100: loss 3.0147, time 9923.92ms, mfu 22.03%
+iter 14110: loss 3.1354, time 9889.52ms, mfu 22.09%
+iter 14120: loss 3.2747, time 9869.60ms, mfu 22.15%
+iter 14130: loss 3.1176, time 9870.24ms, mfu 22.21%
+iter 14140: loss 3.2085, time 9845.42ms, mfu 22.27%
+iter 14150: loss 3.0828, time 9867.75ms, mfu 22.31%
+iter 14160: loss 3.1010, time 9900.65ms, mfu 22.34%
+iter 14170: loss 3.1204, time 9875.00ms, mfu 22.38%
+iter 14180: loss 3.2620, time 9854.47ms, mfu 22.42%
+iter 14190: loss 3.0431, time 9882.11ms, mfu 22.44%
+iter 14200: loss 3.0838, time 9851.10ms, mfu 22.48%
+iter 14210: loss 3.1788, time 9881.55ms, mfu 22.50%
+iter 14220: loss 3.1168, time 9883.49ms, mfu 22.52%
+iter 14230: loss 3.1838, time 9897.26ms, mfu 22.53%
+iter 14240: loss 3.2607, time 9884.92ms, mfu 22.54%
+iter 14250: loss 3.1639, time 9864.34ms, mfu 22.56%
+iter 14260: loss 3.2215, time 10025.24ms, mfu 22.54%
+iter 14270: loss 3.3197, time 9851.23ms, mfu 22.56%
+iter 14280: loss 3.1714, time 9892.08ms, mfu 22.57%
+iter 14290: loss 3.1939, time 9918.07ms, mfu 22.58%
+iter 14300: loss 3.1506, time 9876.78ms, mfu 22.59%
+iter 14310: loss 3.1305, time 9890.83ms, mfu 22.60%
+iter 14320: loss 3.0928, time 9877.38ms, mfu 22.61%

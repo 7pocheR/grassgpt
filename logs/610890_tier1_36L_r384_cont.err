@@ -1,0 +1,105 @@
+W0102 11:39:18.143000 2002114 torch/distributed/run.py:793] 
+W0102 11:39:18.143000 2002114 torch/distributed/run.py:793] *****************************************
+W0102 11:39:18.143000 2002114 torch/distributed/run.py:793] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0102 11:39:18.143000 2002114 torch/distributed/run.py:793] *****************************************
+/home/junyuren/nanoGPT/train.py:181: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(ckpt_path, map_location=device)
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/home/junyuren/nanoGPT/train.py", line 181, in <module>
+[rank0]:     checkpoint = torch.load(ckpt_path, map_location=device)
+[rank0]:                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 1319, in load
+[rank0]:     with _open_file_like(f, "rb") as opened_file:
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 659, in _open_file_like
+[rank0]:     return _open_file(name_or_buffer, mode)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 640, in __init__
+[rank0]:     super().__init__(open(name, mode))
+[rank0]:                      ^^^^^^^^^^^^^^^^
+[rank0]: FileNotFoundError: [Errno 2] No such file or directory: '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-hybridgate-r384/ckpt.pt'
+[rank0]:[W102 11:39:21.608815521 ProcessGroupNCCL.cpp:1250] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+/home/junyuren/nanoGPT/train.py:181: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(ckpt_path, map_location=device)
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/home/junyuren/nanoGPT/train.py", line 181, in <module>
+[rank2]:     checkpoint = torch.load(ckpt_path, map_location=device)
+[rank2]:                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 1319, in load
+[rank2]:     with _open_file_like(f, "rb") as opened_file:
+[rank2]:          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 659, in _open_file_like
+[rank2]:     return _open_file(name_or_buffer, mode)
+[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 640, in __init__
+[rank2]:     super().__init__(open(name, mode))
+[rank2]:                      ^^^^^^^^^^^^^^^^
+[rank2]: FileNotFoundError: [Errno 2] No such file or directory: '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-hybridgate-r384/ckpt.pt'
+/home/junyuren/nanoGPT/train.py:181: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(ckpt_path, map_location=device)
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/home/junyuren/nanoGPT/train.py", line 181, in <module>
+[rank1]:     checkpoint = torch.load(ckpt_path, map_location=device)
+[rank1]:                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 1319, in load
+[rank1]:     with _open_file_like(f, "rb") as opened_file:
+[rank1]:          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 659, in _open_file_like
+[rank1]:     return _open_file(name_or_buffer, mode)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 640, in __init__
+[rank1]:     super().__init__(open(name, mode))
+[rank1]:                      ^^^^^^^^^^^^^^^^
+[rank1]: FileNotFoundError: [Errno 2] No such file or directory: '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-hybridgate-r384/ckpt.pt'
+/home/junyuren/nanoGPT/train.py:181: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(ckpt_path, map_location=device)
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/home/junyuren/nanoGPT/train.py", line 181, in <module>
+[rank3]:     checkpoint = torch.load(ckpt_path, map_location=device)
+[rank3]:                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 1319, in load
+[rank3]:     with _open_file_like(f, "rb") as opened_file:
+[rank3]:          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 659, in _open_file_like
+[rank3]:     return _open_file(name_or_buffer, mode)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/serialization.py", line 640, in __init__
+[rank3]:     super().__init__(open(name, mode))
+[rank3]:                      ^^^^^^^^^^^^^^^^
+[rank3]: FileNotFoundError: [Errno 2] No such file or directory: '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-hybridgate-r384/ckpt.pt'
+W0102 11:39:21.279000 2002114 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2002217 closing signal SIGTERM
+W0102 11:39:21.281000 2002114 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2002218 closing signal SIGTERM
+W0102 11:39:21.282000 2002114 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2002219 closing signal SIGTERM
+E0102 11:39:21.762000 2002114 torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 2002216) of binary: /home/junyuren/.conda/envs/manifold_muon/bin/python3
+Traceback (most recent call last):
+  File "/home/junyuren/.conda/envs/manifold_muon/bin/torchrun", line 7, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/junyuren/.conda/envs/manifold_muon/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-01-02_11:39:21
+  host      : m001
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 2002216)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

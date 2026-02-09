@@ -37,9 +37,12 @@ class CausalSelfAttention(nn.Module):
 
         # Q, K, V projections - use block decomposition if Grassmann enabled
         self.use_grassmann = getattr(config, 'use_grassmann', False)
+        # Component isolation: Allow selective Grassmann for c_attn
+        c_attn_flag = getattr(config, 'use_grassmann_c_attn', None)
+        self.use_grassmann_c_attn = c_attn_flag if c_attn_flag is not None else self.use_grassmann
         self.use_full_block_decomp = getattr(config, 'use_full_block_decomp', False)
 
-        if self.use_grassmann and self.use_full_block_decomp:
+        if self.use_grassmann_c_attn and self.use_full_block_decomp:
             # Alternative: Full 16×16 block decomposition for c_attn
             # Q, K, V each get their own 16×16 grid (768 total blocks for QKV)
             from manifold import FullBlockDecomposedLinear
@@ -72,7 +75,7 @@ class CausalSelfAttention(nn.Module):
             self.grass_scale = config.grass_scale  # x=10 uniform scaling
             self.c_attn = None  # Not used in full block decomp mode
 
-        elif self.use_grassmann:
+        elif self.use_grassmann_c_attn:
             # Hybrid: Decompose into 3 blocks (Q, K, V) with head-level gating
             self.c_attn = BlockDecomposedLinear(
                 config.n_embd,
@@ -112,7 +115,7 @@ class CausalSelfAttention(nn.Module):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
 
         # Q, K, V projections with Grassmann scaling and gating
-        if self.use_grassmann and self.use_full_block_decomp:
+        if self.use_grassmann_c_attn and self.use_full_block_decomp:
             # Alternative: Full block decomposition with 16×16 grid
             # Q, K, V each computed independently through their own grid
             # Gating is built into FullBlockDecomposedLinear (per-head or per-block)
@@ -125,7 +128,7 @@ class CausalSelfAttention(nn.Module):
             k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
             v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
-        elif self.use_grassmann:
+        elif self.use_grassmann_c_attn:
             # Hybrid: 3-block decomposition with head-level gating
             # Step 1: Grassmann projection (NO gating yet)
             qkv = self.c_attn(x)  # (B, T, 3*n_embd), BlockDecomposedLinear with NO block gating
@@ -187,13 +190,24 @@ class MLP(nn.Module):
 
         # Expansion layer - use block decomposition if Grassmann enabled
         self.use_grassmann = getattr(config, 'use_grassmann', False)
-        if self.use_grassmann:
-            # Decompose into 4 blocks with frozen 0.5× scaling and block-level gating
+        # Component isolation: Allow selective Grassmann for c_fc
+        c_fc_flag = getattr(config, 'use_grassmann_c_fc', None)
+        self.use_grassmann_c_fc = c_fc_flag if c_fc_flag is not None else self.use_grassmann
+        if self.use_grassmann_c_fc:
+            # Decompose into 4 blocks with frozen scaling and block-level gating
+            # Calculate frozen_scale based on Grassmann parametrization G_{a,b,r}
+            # For eigenvalues {a,b}, 4 blocks: E[||output||] = √(2(a²+b²))·σ
+            # Want σ/√2 for GELU, so: frozen_scale = 1/(2√(a²+b²))
+            import math
+            grass_a = getattr(config, 'grass_a', 1.0)
+            grass_b = getattr(config, 'grass_b', 0.0)
+            frozen_scale = 1.0 / (2.0 * math.sqrt(grass_a**2 + grass_b**2))
+
             self.c_fc = BlockDecomposedLinear(
                 config.n_embd,
                 4 * config.n_embd,
                 n_blocks=4,
-                frozen_scale=0.5,  # CRITICAL: 0.5× to normalize √4 → 1
+                frozen_scale=frozen_scale,  # Auto-calculated based on (a,b)
                 use_block_gating=True,  # 4 block-level gates (one per MLP block)
                 bias=False  # Grassmann requires bias=False
             )
@@ -211,7 +225,7 @@ class MLP(nn.Module):
 
     def forward(self, x):
         # Apply c_fc with Grassmann scaling if enabled
-        if self.use_grassmann:
+        if self.use_grassmann_c_fc:
             # Grassmann: ||W||_op=1, block gating (inside BlockDecomposedLinear), frozen 0.5×, then grass_scale
             # Block gating provides input-dependent magnitude per MLP block
             h = self.c_fc(x) * self.grass_scale  # (B, T, 4*n_embd), already block-gated inside
@@ -260,6 +274,9 @@ class GPTConfig:
     grass_lr: float = 8e-3  # Learning rate for Grassmann layers (8× boost)
     gate_lr: float = None  # Learning rate for gating networks (None = 2× learning_rate)
     embed_lr: float = None  # Learning rate for embeddings (None = 0.5× learning_rate)
+    # Component isolation (selective Grassmann application)
+    use_grassmann_c_attn: bool = None  # If None, defaults to use_grassmann
+    use_grassmann_c_fc: bool = None  # If None, defaults to use_grassmann
     # Full block decomposition (alternative to hybrid gating)
     use_full_block_decomp: bool = False  # Use 16×16 grid decomposition for c_attn (768 blocks total)
     full_block_size: int = 64  # Block size for full decomposition (64 for 1024d → 16×16 grid)
@@ -788,6 +805,10 @@ class GPT(nn.Module):
         scales_attn_c_proj = get_scale_or_list('grass_scale_attn_c_proj', 1.0)
         scales_mlp_c_proj = get_scale_or_list('grass_scale_mlp_c_proj', 1.0)
 
+        # Get Grassmann eigenvalues from config (default: G_{1,0,r} for non-skip layers)
+        grass_a = getattr(config_module, 'grass_a', 1.0)
+        grass_b = getattr(config_module, 'grass_b', 0.0)
+
         # Track which parameters are used by BlockDecomposedLinear (to skip in parameter loop)
         block_decomposed_params = set()
 
@@ -806,13 +827,13 @@ class GPT(nn.Module):
                 if 'attn.c_attn' in module_name:
                     # Q, K, V blocks - non-skip-facing
                     rank = ranks_c_attn[block_idx]
-                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    a, b = grass_a, grass_b  # From config (default: G_{1.0, 0.0, r})
                     lr = 8e-3  # 8× boost
                     layer_type = 'c_attn'
                 elif 'mlp.c_fc' in module_name:
                     # MLP expansion blocks - non-skip-facing
                     rank = ranks_mlp_fc[block_idx]
-                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    a, b = grass_a, grass_b  # From config (default: G_{1.0, 0.0, r})
                     lr = 8e-3  # 8× boost
                     layer_type = 'mlp.c_fc'
                 else:
@@ -855,7 +876,7 @@ class GPT(nn.Module):
                     # Full block decomposition for Q, K, or V
                     # Rank is 50% of block_size (e.g., 32 for 64×64 blocks)
                     rank = module.block_size // 2
-                    a, b = 1.0, 0.0  # G_{1.0, 0.0, r}
+                    a, b = grass_a, grass_b  # From config (default: G_{1.0, 0.0, r})
                     lr = 8e-3  # 8× boost
                     layer_type = 'c_attn_full'
                 else:

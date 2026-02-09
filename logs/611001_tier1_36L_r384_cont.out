@@ -1,0 +1,7 @@
+=== TIER 1 EXPERIMENT 1 (CONTINUATION): 36L, r=384, Hybrid ===
+Job ID: 611001
+Node: m002
+Start time: Mon Jan  5 08:55:51 AM CST 2026
+
+Resuming from checkpoint: /net/scratch2/junyuren/nanoGPT-manifold/out-gpt2large-grass-hybridgate-r384/ckpt.pt
+

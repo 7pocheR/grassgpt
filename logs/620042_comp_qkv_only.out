@@ -1,0 +1,300 @@
+Overriding config with config/train_gpt2_medium_grassmann_qkv_only_r384.py:
+Overriding config with config/train_gpt2_medium_grassmann_qkv_only_r384.py:
+Overriding config with config/train_gpt2_medium_grassmann_qkv_only_r384.py:Overriding config with config/train_gpt2_medium_grassmann_qkv_only_r384.py:
+
+# COMPONENT ISOLATION: QKV-only Grassmann (c_attn only, c_fc uses AdamW)
+# Tests hypothesis: Does Grassmann help specifically in attention (multi-head structure)?
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1  # Unified
+bias = False
+
+# Enable Grassmann ONLY for c_attn (QKV projection)
+use_grassmann = True
+use_grassmann_c_attn = True  # Enable for c_attn
+use_grassmann_c_fc = False   # DISABLE for c_fc (use AdamW instead)
+use_full_block_decomp = False  # Use hybrid gating (same as 24L hybrid), NOT full block
+
+# Grassmann configuration
+# c_attn: 3-block decomposition (Q/K/V) with 48 head-level gates (SAME as 24L hybrid)
+# c_fc: STANDARD ADAMW (not Grassmann)
+
+grass_rank = 384  # r=384 per block (same as 24L hybrid)
+grass_scale = 10.0  # Uniform x=10 scaling for c_attn
+grass_a = 1.0  # Identity-centered
+grass_b = 0.0
+grass_lr = 2e-3  # Unified Tier 1 LR
+
+# Gating LRs (only for c_attn gates, c_fc has no gates)
+gate_lr = 1.2e-3  # 2× learning_rate
+embed_lr = 3e-4   # 0.5× learning_rate
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 13000  # ~20B tokens @ 1.57M tokens/iter
+warmup_iters = 2000  # Unified
+lr_decay_iters = 13000
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Same as 24L hybrid: 32 × 12 × 4 GPUs = 1,572,864 tokens/iter
+batch_size = 32  # Per GPU (same as 24L hybrid)
+gradient_accumulation_steps = 12  # MUST be divisible by 4 GPUs
+
+# Regularization
+weight_decay = 1e-1  # Unified
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# Output directory
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-qkv-only-r384'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'
+device = 'cuda'
+
+# Phase identifier (for logging, not used in model)
+grassmann_phase = 'qkv_only'  # Component isolation: c_attn Grassmann, c_fc AdamW
+# COMPONENT ISOLATION: QKV-only Grassmann (c_attn only, c_fc uses AdamW)
+# Tests hypothesis: Does Grassmann help specifically in attention (multi-head structure)?
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1  # Unified
+bias = False
+
+# Enable Grassmann ONLY for c_attn (QKV projection)
+use_grassmann = True
+use_grassmann_c_attn = True  # Enable for c_attn
+use_grassmann_c_fc = False   # DISABLE for c_fc (use AdamW instead)
+use_full_block_decomp = False  # Use hybrid gating (same as 24L hybrid), NOT full block
+
+# Grassmann configuration
+# c_attn: 3-block decomposition (Q/K/V) with 48 head-level gates (SAME as 24L hybrid)
+# c_fc: STANDARD ADAMW (not Grassmann)
+
+grass_rank = 384  # r=384 per block (same as 24L hybrid)
+grass_scale = 10.0  # Uniform x=10 scaling for c_attn
+grass_a = 1.0  # Identity-centered
+grass_b = 0.0
+grass_lr = 2e-3  # Unified Tier 1 LR
+
+# Gating LRs (only for c_attn gates, c_fc has no gates)
+gate_lr = 1.2e-3  # 2× learning_rate
+embed_lr = 3e-4   # 0.5× learning_rate
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 13000  # ~20B tokens @ 1.57M tokens/iter
+warmup_iters = 2000  # Unified
+lr_decay_iters = 13000
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Same as 24L hybrid: 32 × 12 × 4 GPUs = 1,572,864 tokens/iter
+batch_size = 32  # Per GPU (same as 24L hybrid)
+gradient_accumulation_steps = 12  # MUST be divisible by 4 GPUs
+
+# Regularization
+weight_decay = 1e-1  # Unified
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# Output directory
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-qkv-only-r384'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'
+device = 'cuda'
+
+# Phase identifier (for logging, not used in model)
+grassmann_phase = 'qkv_only'  # Component isolation: c_attn Grassmann, c_fc AdamW
+# COMPONENT ISOLATION: QKV-only Grassmann (c_attn only, c_fc uses AdamW)
+# Tests hypothesis: Does Grassmann help specifically in attention (multi-head structure)?
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1  # Unified
+bias = False
+
+# Enable Grassmann ONLY for c_attn (QKV projection)
+use_grassmann = True
+use_grassmann_c_attn = True  # Enable for c_attn
+use_grassmann_c_fc = False   # DISABLE for c_fc (use AdamW instead)
+use_full_block_decomp = False  # Use hybrid gating (same as 24L hybrid), NOT full block
+
+# Grassmann configuration
+# c_attn: 3-block decomposition (Q/K/V) with 48 head-level gates (SAME as 24L hybrid)
+# c_fc: STANDARD ADAMW (not Grassmann)
+
+grass_rank = 384  # r=384 per block (same as 24L hybrid)
+grass_scale = 10.0  # Uniform x=10 scaling for c_attn
+grass_a = 1.0  # Identity-centered
+grass_b = 0.0
+grass_lr = 2e-3  # Unified Tier 1 LR
+
+# Gating LRs (only for c_attn gates, c_fc has no gates)
+gate_lr = 1.2e-3  # 2× learning_rate
+embed_lr = 3e-4   # 0.5× learning_rate
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 13000  # ~20B tokens @ 1.57M tokens/iter
+warmup_iters = 2000  # Unified
+lr_decay_iters = 13000
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Same as 24L hybrid: 32 × 12 × 4 GPUs = 1,572,864 tokens/iter
+batch_size = 32  # Per GPU (same as 24L hybrid)
+gradient_accumulation_steps = 12  # MUST be divisible by 4 GPUs
+
+# Regularization
+weight_decay = 1e-1  # Unified
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# Output directory
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-qkv-only-r384'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'
+device = 'cuda'
+
+# Phase identifier (for logging, not used in model)
+grassmann_phase = 'qkv_only'  # Component isolation: c_attn Grassmann, c_fc AdamW
+# COMPONENT ISOLATION: QKV-only Grassmann (c_attn only, c_fc uses AdamW)
+# Tests hypothesis: Does Grassmann help specifically in attention (multi-head structure)?
+
+# GPT-2 Medium architecture
+n_layer = 24
+n_head = 16
+n_embd = 1024
+block_size = 1024
+dropout = 0.1  # Unified
+bias = False
+
+# Enable Grassmann ONLY for c_attn (QKV projection)
+use_grassmann = True
+use_grassmann_c_attn = True  # Enable for c_attn
+use_grassmann_c_fc = False   # DISABLE for c_fc (use AdamW instead)
+use_full_block_decomp = False  # Use hybrid gating (same as 24L hybrid), NOT full block
+
+# Grassmann configuration
+# c_attn: 3-block decomposition (Q/K/V) with 48 head-level gates (SAME as 24L hybrid)
+# c_fc: STANDARD ADAMW (not Grassmann)
+
+grass_rank = 384  # r=384 per block (same as 24L hybrid)
+grass_scale = 10.0  # Uniform x=10 scaling for c_attn
+grass_a = 1.0  # Identity-centered
+grass_b = 0.0
+grass_lr = 2e-3  # Unified Tier 1 LR
+
+# Gating LRs (only for c_attn gates, c_fc has no gates)
+gate_lr = 1.2e-3  # 2× learning_rate
+embed_lr = 3e-4   # 0.5× learning_rate
+
+# Training hyperparameters
+learning_rate = 6e-4  # Base LR for AdamW components
+max_iters = 13000  # ~20B tokens @ 1.57M tokens/iter
+warmup_iters = 2000  # Unified
+lr_decay_iters = 13000
+min_lr = 6e-5  # 0.1 × learning_rate
+
+# Multi-GPU batch configuration
+# Same as 24L hybrid: 32 × 12 × 4 GPUs = 1,572,864 tokens/iter
+batch_size = 32  # Per GPU (same as 24L hybrid)
+gradient_accumulation_steps = 12  # MUST be divisible by 4 GPUs
+
+# Regularization
+weight_decay = 1e-1  # Unified
+
+# Optimizer
+beta1 = 0.9
+beta2 = 0.95
+grad_clip = 1.0
+
+# Evaluation
+eval_interval = 1000
+eval_iters = 200
+log_interval = 10
+
+# Dataset
+dataset = 'openwebtext'
+data_dir = '/net/scratch2/junyuren/nanoGPT-manifold/data/openwebtext'
+always_save_checkpoint = True
+
+# Output directory
+out_dir = '/net/scratch2/junyuren/nanoGPT-manifold/out-gpt2m-grass-qkv-only-r384'
+
+# Compile for performance
+compile = True
+
+# System
+dtype = 'bfloat16'
+device = 'cuda'
+
+# Phase identifier (for logging, not used in model)
+grassmann_phase = 'qkv_only'  # Component isolation: c_attn Grassmann, c_fc AdamW
+
+
+
+

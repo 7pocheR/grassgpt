@@ -164,7 +164,14 @@ model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=bloc
                   bias=bias, vocab_size=None, dropout=dropout,
                   use_grassmann=use_grassmann, grass_rank=grass_rank, grass_scale=grass_scale,
                   grass_a=grass_a, grass_b=grass_b, grass_lr=grass_lr,
-                  grassmann_dropout=grassmann_dropout, gate_lr=gate_lr, embed_lr=embed_lr) # start with model_args from command line
+                  grassmann_dropout=grassmann_dropout, gate_lr=gate_lr, embed_lr=embed_lr,
+                  # Component isolation flags
+                  use_grassmann_c_attn=globals().get('use_grassmann_c_attn', None),
+                  use_grassmann_c_fc=globals().get('use_grassmann_c_fc', None),
+                  # Full block decomposition flags
+                  use_full_block_decomp=globals().get('use_full_block_decomp', False),
+                  full_block_size=globals().get('full_block_size', 64),
+                  full_block_gating_mode=globals().get('full_block_gating_mode', 'per_head')) # start with model_args from command line
 if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new model from scratch")

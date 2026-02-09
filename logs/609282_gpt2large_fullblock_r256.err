@@ -10,3 +10,4 @@ W1231 08:00:26.308000 2893754 torch/distributed/run.py:793] ********************
   scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 /home/junyuren/nanoGPT/train.py:216: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
   scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+slurmstepd: error: *** JOB 609282 ON n001 CANCELLED AT 2025-12-31T20:00:35 DUE TO TIME LIMIT ***
